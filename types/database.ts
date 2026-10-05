@@ -43,6 +43,16 @@ export type TaskSource = "manual" | "ai" | "claude" | "whatsapp" | "activity";
 export type NoteScope = "personal" | "work" | "project";
 export type ResourceRole = "database" | "repository" | "deployment" | "legacy" | "other" | "";
 
+export type CredentialType =
+  | "password"
+  | "api_key"
+  | "token"
+  | "service_role_key"
+  | "recovery_code"
+  | "secret";
+
+export type AuditAction = "create" | "reveal" | "copy" | "update" | "delete";
+
 export interface Profile {
   user_id: string;
   display_name: string | null;
@@ -151,6 +161,62 @@ export interface ActivityLog {
   created_at: string;
   updated_at?: string;
   project?: Project | null;
+}
+
+export interface CredentialMetadata {
+  id: string;
+  user_id: string;
+  service_id: string | null;
+  label: string;
+  identifier: string | null;
+  credential_type: CredentialType;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  service?: Service | null;
+}
+
+export interface VaultAuditLog {
+  id: string;
+  user_id: string;
+  credential_id: string | null;
+  credential_label: string | null;
+  action: AuditAction;
+  created_at: string;
+}
+
+export interface DocumentItem {
+  id: string;
+  user_id: string;
+  title: string;
+  file_path: string;
+  file_size: number | null;
+  mime_type: string | null;
+  category: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReminderItem {
+  id: string;
+  user_id: string;
+  title: string;
+  due_at: string;
+  is_completed: boolean;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonalLink {
+  id: string;
+  user_id: string;
+  title: string;
+  url: string;
+  tags: string[];
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProjectAccount {
