@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-1: #e9f4fa;
+  --bg-2: #fdf3e7;
+  --ink: #0f2a33;
+  --mute: #5d7580;
+  --glass: rgba(255, 255, 255, 0.75);
+  --card: #ffffff;
+  --line: rgba(15, 42, 51, 0.08);
+  --teal: #0e8aa0;
+  --teal-2: #0a6f84;
+  --orange: #f08a24;
+  --ok: #16a05a;
+  --red: #d63a3a;
+  --shadow: 0 8px 30px rgba(14, 90, 110, 0.10);
+}
+
+.dark {
+  --bg-1: #0b1a20;
+  --bg-2: #1a1410;
+  --ink: #e8f3f6;
+  --mute: #8fa8b2;
+  --glass: rgba(20, 38, 46, 0.78);
+  --card: #14262e;
+  --line: rgba(255, 255, 255, 0.08);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+body {
+  color: var(--ink);
+  background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Panel top gradient strip */
+.panel-highlight {
+  position: relative;
+  overflow: hidden;
+}
+.panel-highlight::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--teal) 0%, var(--orange) 100%);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mute);
+}
