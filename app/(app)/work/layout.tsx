@@ -11,6 +11,7 @@ import {
   Layers,
   Link2,
   Users,
+  Settings,
 } from "lucide-react";
 
 export default function WorkLayout({
@@ -27,6 +28,7 @@ export default function WorkLayout({
     { label: "Applications", href: "/work/applications", icon: Layers },
     { label: "Resources", href: "/work/resources", icon: Link2 },
     { label: "Accounts", href: "/work/accounts", icon: Users },
+    { label: "Settings", href: "/work/settings", icon: Settings },
   ];
 
   return (

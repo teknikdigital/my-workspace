@@ -13,7 +13,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - images, svg, icons (static asset extensions)
+     * - api/activity (uses its own Bearer token auth)
+     * - api/whatsapp (uses its own HMAC signature auth) - Fase 5
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/activity|api/whatsapp|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
