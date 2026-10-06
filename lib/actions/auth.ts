@@ -19,9 +19,14 @@ export async function signIn(formData: FormData): Promise<AuthActionResult | voi
     return { error: "Email atau kata sandi tidak valid." };
   }
 
+  let emailToUse = parsed.data.email.trim();
+  if (!emailToUse.includes("@")) {
+    emailToUse = `${emailToUse}@gmail.com`;
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
+    email: emailToUse,
     password: parsed.data.password,
   });
 

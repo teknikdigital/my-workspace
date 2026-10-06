@@ -27,7 +27,10 @@ export default async function AppLayout({
     .single();
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="relative min-h-screen flex flex-col bg-[url('/bagroundutamamyworkspace.png')] bg-cover bg-center bg-fixed bg-no-repeat">
+      {/* Dynamic backdrop wash for crisp readability */}
+      <div className="fixed inset-0 bg-white/75 dark:bg-[#0c121d]/85 backdrop-blur-[2px] pointer-events-none -z-10" />
+
       <TopBar
         displayName={profile?.display_name}
         roleLabel={profile?.role_label}

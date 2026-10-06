@@ -15,11 +15,11 @@ describe("Validation Schemas", () => {
   });
 
   it("rejects invalid sign in credentials", () => {
-    const invalidEmail = signInSchema.safeParse({
-      email: "not-an-email",
+    const emptyEmail = signInSchema.safeParse({
+      email: "",
       password: "pass",
     });
-    expect(invalidEmail.success).toBe(false);
+    expect(emptyEmail.success).toBe(false);
 
     const emptyPassword = signInSchema.safeParse({
       email: "user@example.com",

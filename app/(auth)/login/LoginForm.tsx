@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { signIn } from "@/lib/actions/auth";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
 
 interface LoginFormProps {
   nextParam?: string;
@@ -12,6 +12,7 @@ export function LoginForm({ nextParam }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -32,58 +33,53 @@ export function LoginForm({ nextParam }: LoginFormProps) {
         setIsLoading(false);
       }
     } catch {
-      // If Next.js redirect happens, it might throw a NEXT_REDIRECT error in client transitions
-      // which is normal navigation behavior.
+      // Normal Next.js redirect navigation
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-      {/* Email Input */}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Email / Username Input */}
       <div>
-        <label
-          htmlFor="email"
-          className="block text-xs font-bold text-ink mb-1.5 uppercase tracking-wider"
-        >
-          Email
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          autoFocus
-          autoComplete="email"
-          placeholder="nama@domain.com"
-          disabled={isLoading}
-          className="w-full h-11 rounded-btn border border-line bg-card/80 px-3.5 text-sm text-ink placeholder:text-mute focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/20 transition-all"
-        />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <Mail className="h-4 w-4" />
+          </div>
+          <input
+            id="email"
+            name="email"
+            type="text"
+            required
+            autoFocus
+            autoComplete="username email"
+            placeholder="Email atau Username"
+            disabled={isLoading}
+            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 pl-10 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-[#28849E] focus:outline-none focus:ring-2 focus:ring-[#28849E]/20 transition-all shadow-sm"
+          />
+        </div>
       </div>
 
-      {/* Password Input with show/hide toggle */}
+      {/* Password Input */}
       <div>
-        <label
-          htmlFor="password"
-          className="block text-xs font-bold text-ink mb-1.5 uppercase tracking-wider"
-        >
-          Kata sandi
-        </label>
         <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <Lock className="h-4 w-4" />
+          </div>
           <input
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
             required
             autoComplete="current-password"
-            placeholder="••••••••"
+            placeholder="Password"
             disabled={isLoading}
-            className="w-full h-11 rounded-btn border border-line bg-card/80 px-3.5 pr-11 text-sm text-ink placeholder:text-mute focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/20 transition-all"
+            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 pl-10 pr-11 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-[#28849E] focus:outline-none focus:ring-2 focus:ring-[#28849E]/20 transition-all shadow-sm"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-mute hover:text-ink transition-colors"
+            aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
           >
             {showPassword ? (
               <EyeOff className="h-4 w-4" />
@@ -94,12 +90,32 @@ export function LoginForm({ nextParam }: LoginFormProps) {
         </div>
       </div>
 
+      {/* Options Row: Ingat saya & Lupa password */}
+      <div className="flex items-center justify-between pt-1 text-xs">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600 dark:text-slate-300">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-[#28849E] focus:ring-[#28849E]"
+          />
+          <span>Ingat saya</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => alert("Silakan hubungi administrator workspace untuk reset password.")}
+          className="font-medium text-[#28849E] hover:underline"
+        >
+          Lupa password?
+        </button>
+      </div>
+
       {/* Error Message Box */}
       {errorMessage && (
         <div
           role="alert"
           aria-live="polite"
-          className="rounded-btn border border-red/20 bg-red/10 p-3 text-xs font-semibold text-red animate-in fade-in"
+          className="rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400 animate-in fade-in"
         >
           {errorMessage}
         </div>
@@ -110,7 +126,7 @@ export function LoginForm({ nextParam }: LoginFormProps) {
         type="submit"
         id="btn-login-submit"
         disabled={isLoading}
-        className="flex w-full h-11 items-center justify-center gap-2 rounded-btn bg-gradient-to-r from-teal to-teal-dark px-4 font-bold text-white shadow-soft hover:opacity-95 active:scale-[0.99] disabled:opacity-60 transition-all"
+        className="flex w-full h-12 items-center justify-center gap-2 rounded-xl bg-[#28849E] hover:bg-[#207289] active:bg-[#1a5e72] px-4 font-bold text-white shadow-md hover:shadow-lg active:scale-[0.99] disabled:opacity-60 transition-all mt-2"
       >
         {isLoading ? (
           <>
@@ -118,9 +134,26 @@ export function LoginForm({ nextParam }: LoginFormProps) {
             <span>Memproses...</span>
           </>
         ) : (
-          <span>Masuk</span>
+          <>
+            <span>Masuk</span>
+            <ArrowRight className="h-4 w-4" />
+          </>
         )}
       </button>
+
+      {/* Terms & Privacy Notice */}
+      <div className="pt-6 text-center text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+        <p>Dengan melanjutkan, Anda menyetujui</p>
+        <p className="mt-0.5">
+          <span className="font-semibold text-[#28849E] hover:underline cursor-pointer">
+            Syarat & Ketentuan
+          </span>{" "}
+          dan{" "}
+          <span className="font-semibold text-[#28849E] hover:underline cursor-pointer">
+            Kebijakan Privasi
+          </span>
+        </p>
+      </div>
     </form>
   );
 }

@@ -5,6 +5,7 @@ import { signOut } from "@/lib/actions/auth";
 import { Search, LogOut, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
+import Image from "next/image";
 
 interface TopBarProps {
   displayName?: string | null;
@@ -59,8 +60,14 @@ export function TopBar({ displayName, roleLabel, email }: TopBarProps) {
       <div className="flex h-14 items-center justify-between gap-2 rounded-full border border-line bg-glass px-3.5 py-1.5 backdrop-blur-[14px] shadow-soft transition-all md:px-5">
         {/* Left: Logo & App Name */}
         <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight text-ink">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-teal via-teal-dark to-orange text-white shadow-sm font-black text-sm">
-            W
+          <div className="relative h-8 w-8 shrink-0">
+            <Image
+              src="/logomyworkspace.png"
+              alt="Logo"
+              fill
+              className="object-contain"
+              priority
+            />
           </div>
           <span className="hidden sm:inline text-base font-extrabold tracking-tight">
             My Workspace
