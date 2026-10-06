@@ -42,7 +42,7 @@ export function LoginForm({ nextParam }: LoginFormProps) {
       {/* Email / Username Input */}
       <div>
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#94A3B8]">
             <Mail className="h-4 w-4" />
           </div>
           <input
@@ -54,7 +54,7 @@ export function LoginForm({ nextParam }: LoginFormProps) {
             autoComplete="username email"
             placeholder="Email atau Username"
             disabled={isLoading}
-            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 pl-10 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-[#28849E] focus:outline-none focus:ring-2 focus:ring-[#28849E]/20 transition-all shadow-sm"
+            className="w-full h-12 rounded-xl border border-[#CBD5E1] bg-white pl-10 pr-4 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:border-[#28849E] focus:outline-none focus:ring-1 focus:ring-[#28849E] transition-all shadow-sm"
           />
         </div>
       </div>
@@ -62,7 +62,7 @@ export function LoginForm({ nextParam }: LoginFormProps) {
       {/* Password Input */}
       <div>
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#94A3B8]">
             <Lock className="h-4 w-4" />
           </div>
           <input
@@ -73,13 +73,13 @@ export function LoginForm({ nextParam }: LoginFormProps) {
             autoComplete="current-password"
             placeholder="Password"
             disabled={isLoading}
-            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 pl-10 pr-11 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-[#28849E] focus:outline-none focus:ring-2 focus:ring-[#28849E]/20 transition-all shadow-sm"
+            className="w-full h-12 rounded-xl border border-[#CBD5E1] bg-white pl-10 pr-11 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:border-[#28849E] focus:outline-none focus:ring-1 focus:ring-[#28849E] transition-all shadow-sm"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#94A3B8] hover:text-[#475569] transition-colors"
           >
             {showPassword ? (
               <EyeOff className="h-4 w-4" />
@@ -92,12 +92,12 @@ export function LoginForm({ nextParam }: LoginFormProps) {
 
       {/* Options Row: Ingat saya & Lupa password */}
       <div className="flex items-center justify-between pt-1 text-xs">
-        <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600 dark:text-slate-300">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-[#64748B]">
           <input
             type="checkbox"
             checked={rememberMe}
             onChange={(e) => setRememberMe(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-[#28849E] focus:ring-[#28849E]"
+            className="h-4 w-4 rounded border-[#CBD5E1] text-[#28849E] focus:ring-[#28849E]"
           />
           <span>Ingat saya</span>
         </label>
@@ -115,7 +115,7 @@ export function LoginForm({ nextParam }: LoginFormProps) {
         <div
           role="alert"
           aria-live="polite"
-          className="rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400 animate-in fade-in"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-600 animate-in fade-in"
         >
           {errorMessage}
         </div>
@@ -142,7 +142,7 @@ export function LoginForm({ nextParam }: LoginFormProps) {
       </button>
 
       {/* Terms & Privacy Notice */}
-      <div className="pt-6 text-center text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+      <div className="pt-6 text-center text-[11px] leading-relaxed text-[#94A3B8]">
         <p>Dengan melanjutkan, Anda menyetujui</p>
         <p className="mt-0.5">
           <span className="font-semibold text-[#28849E] hover:underline cursor-pointer">
