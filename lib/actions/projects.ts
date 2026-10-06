@@ -86,11 +86,26 @@ export async function createProject(input: ProjectInput) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Tidak terautentikasi" };
 
+  const slug =
+    parsed.data.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "project";
+
+  const tags = Array.from(
+    new Set([
+      ...(parsed.data.category ? [parsed.data.category] : []),
+      ...(parsed.data.tech_stack || []),
+    ])
+  );
+
   const { data, error } = await supabase
     .from("projects")
     .insert({
       user_id: user.id,
       name: parsed.data.name,
+      slug,
+      tags,
       description: parsed.data.description,
       status: parsed.data.status,
       progress: parsed.data.progress,
