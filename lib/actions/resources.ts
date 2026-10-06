@@ -13,7 +13,7 @@ export async function getResources() {
     .from("resources")
     .select(`
       *,
-      account:accounts (id, label, identifier, service:services (name))
+      service:services (id, name, slug)
     `)
     .order("created_at", { ascending: false });
 

@@ -17,11 +17,11 @@ export async function getApplications() {
       application_resources (
         resource_id,
         role,
-        resources (id, title, url, category, accounts (label, identifier))
+        resources (id, name, url, category, services (name))
       ),
       application_accounts (
         account_id,
-        accounts (id, label, identifier, services (name))
+        accounts (id, label, email, username, services (name))
       )
     `)
     .order("created_at", { ascending: false });

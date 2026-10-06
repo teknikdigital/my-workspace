@@ -106,8 +106,9 @@ export async function executeAiTool(toolName: string, args: any): Promise<any> {
       case "create_note": {
         const res = await createNote({
           title: args.title || undefined,
-          body: args.body,
-          scope: args.scope || "work",
+          content: args.content || args.body || "",
+          tags: args.tags || [],
+          project_id: args.project_id || undefined,
         });
         return res;
       }

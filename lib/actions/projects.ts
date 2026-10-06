@@ -13,15 +13,15 @@ export async function getProjects() {
     .from("projects")
     .select(`
       *,
-      applications (id, name, type, status),
+      applications (id, name, app_type, status),
       project_accounts (
         account_id,
-        accounts (id, label, identifier, services (name))
+        accounts (id, label, email, username, services (name))
       ),
       project_resources (
         resource_id,
         role,
-        resources (id, title, url, category)
+        resources (id, name, url, category)
       )
     `)
     .order("created_at", { ascending: false });
@@ -50,7 +50,7 @@ export async function getProjectById(id: string) {
       project_resources (
         resource_id,
         role,
-        resources (*, accounts (label, identifier))
+        resources (*, services (name, slug))
       ),
       tasks (*),
       notes (*)
