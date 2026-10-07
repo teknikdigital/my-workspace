@@ -32,3 +32,11 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# My Workspace Agent (lokal)
+agent/.agent-token
+agent/.agent.pid
+agent/logs/
+
+# Backup otomatis sebelum perubahan oleh Claude
+.backup_*/

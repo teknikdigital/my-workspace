@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { activityWebhookSchema } from "@/lib/validators/integrations";
+import { prepareHandoff } from "@/lib/activity/handoff";
 
 /**
  * POST /api/activity
@@ -130,12 +131,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 7. Simpan HANDOFF.md sebagai dokumen lengkap project (dibaca AI lewat read_project_document)
+    let handoff: { saved: boolean; title?: string; redacted?: number; truncated?: boolean; warning?: string } | undefined;
+    if (payload.handoff) {
+      if (!projectId) {
+        handoff = { saved: false, warning: `Project "${payload.project}" tidak ditemukan di My Workspace, handoff tidak disimpan.` };
+      } else {
+        const h = prepareHandoff(payload.handoff);
+        const title = `📚 ${h.file_name}`;
+        const content = `${h.content.trim()}\n\n---\nDiperbarui otomatis oleh ${payload.source} pada ${new Date().toISOString()}`;
+        const { data: existing } = await supabase
+          .from("notes")
+          .select("id")
+          .eq("user_id", tokenRecord.user_id)
+          .eq("project_id", projectId)
+          .eq("title", title)
+          .contains("tags", ["dokumen-lengkap"])
+          .limit(1);
+        const row = { title, content, body: content, tags: ["dokumen-lengkap", "handoff"], project_id: projectId, scope: "work" };
+        const res = existing?.length
+          ? await supabase.from("notes").update(row).eq("id", existing[0].id)
+          : await supabase.from("notes").insert({ user_id: tokenRecord.user_id, ...row });
+        handoff = res.error
+          ? { saved: false, warning: `Gagal menyimpan handoff: ${res.error.message}` }
+          : { saved: true, title, redacted: h.redacted, truncated: h.truncated };
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
         activity_id: activityLog.id,
         project_id: projectId,
         message: `Aktivitas "${payload.summary}" berhasil dicatat.`,
+        ...(handoff ? { handoff } : {}),
       },
       { status: 201 }
     );
@@ -162,13 +191,14 @@ export async function GET() {
         authentication: "Bearer <token> (created in Settings > Integration Tokens)",
         payload: {
           project: "string (required) — project name for fuzzy matching",
-          activity_type: "development | bugfix | deployment | review | documentation | testing | other",
+          activity_type: "development | bugfix | deployment | review | documentation | testing | meeting | planning | configuration | other",
           summary: "string (required) — activity description",
           files_changed: "string[] (optional) — list of modified files",
           status: "in_progress | completed | blocked | cancelled",
-          source: "claude | github | vercel | ci | external",
+          source: "teks bebas, mis. claude | claude-code | antigravity | git | ci",
           application: "string (optional) — application name for fuzzy matching",
           task_id: "uuid (optional) — link to existing task",
+          handoff: "{ file_name?, content } (optional) — isi HANDOFF.md, disimpan sebagai dokumen project (rahasia disamarkan)",
         },
       },
     },

@@ -10,6 +10,19 @@ describe("AI Workspace Intelligence", () => {
     expect(toolNames).toContain("create_task");
     expect(toolNames).toContain("create_note");
     expect(toolNames).toContain("get_project_details");
+    expect(toolNames).toContain("register_account");
+    for (const t of ["create_project", "check_project_readiness", "save_document_facts", "register_resource", "register_application", "update_project", "read_project_document", "log_activity", "get_activity_summary"]) {
+      expect(toolNames).toContain(t);
+    }
+  });
+
+  it("register_account hanya mewajibkan service dan tidak punya field rahasia", () => {
+    const tool = AI_TOOL_DEFINITIONS.find((t) => t.name === "register_account")!;
+    const params = tool.parameters as { required: string[]; properties: Record<string, unknown> };
+    expect(params.required).toEqual(["service"]);
+    for (const secret of ["password", "api_key", "token", "secret"]) {
+      expect(params.properties).not.toHaveProperty(secret);
+    }
   });
 
   it("handles unconfigured AI gracefully without crashing", async () => {

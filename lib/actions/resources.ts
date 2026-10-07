@@ -37,6 +37,8 @@ export async function createResource(input: ResourceInput) {
     .insert({
       user_id: user.id,
       ...parsed.data,
+      // resources.name NOT NULL (full_schema.sql): isi dari judul
+      name: parsed.data.title,
     })
     .select()
     .single();

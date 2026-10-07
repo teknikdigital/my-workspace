@@ -12,6 +12,7 @@ import {
   Link2,
   Users,
   Settings,
+  MonitorPlay,
 } from "lucide-react";
 
 export default function WorkLayout({
@@ -26,6 +27,7 @@ export default function WorkLayout({
     { label: "Tasks", href: "/work/tasks", icon: CheckSquare },
     { label: "Activity", href: "/work/activity", icon: Activity },
     { label: "Applications", href: "/work/applications", icon: Layers },
+    { label: "Lokal", href: "/work/local", icon: MonitorPlay },
     { label: "Resources", href: "/work/resources", icon: Link2 },
     { label: "Accounts", href: "/work/accounts", icon: Users },
     { label: "Settings", href: "/work/settings", icon: Settings },

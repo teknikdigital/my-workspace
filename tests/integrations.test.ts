@@ -118,3 +118,14 @@ describe("Integration Validators", () => {
     });
   });
 });
+
+describe("activityWebhookSchema source bebas", () => {
+  it("menerima antigravity & claude-code, menolak karakter aneh", async () => {
+    const { activityWebhookSchema } = await import("@/lib/validators/integrations");
+    const ok = activityWebhookSchema.safeParse({ project: "RapiUang", summary: "fix", source: "Antigravity" });
+    expect(ok.success && ok.data.source).toBe("antigravity");
+    expect(activityWebhookSchema.safeParse({ project: "x", summary: "y", source: "claude-code" }).success).toBe(true);
+    expect(activityWebhookSchema.safeParse({ project: "x", summary: "y", source: "<script>" }).success).toBe(false);
+    expect(activityWebhookSchema.safeParse({ project: "x", summary: "y", activity_type: "meeting" }).success).toBe(true);
+  });
+});

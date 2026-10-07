@@ -57,6 +57,8 @@ export async function createAccount(input: AccountInput) {
     .insert({
       user_id: user.id,
       ...parsed.data,
+      // accounts.email NOT NULL (full_schema.sql): isi dari identifier (email/username) yang diketik
+      email: parsed.data.identifier,
     })
     .select()
     .single();

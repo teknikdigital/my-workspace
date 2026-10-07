@@ -46,6 +46,13 @@ export async function createApplication(input: ApplicationInput) {
     .insert({
       user_id: user.id,
       ...parsed.data,
+      // applications.slug NOT NULL & app_type (enum) di full_schema.sql
+      slug:
+        parsed.data.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "") || "app",
+      app_type: parsed.data.type,
     })
     .select()
     .single();

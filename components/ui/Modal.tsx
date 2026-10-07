@@ -8,9 +8,11 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /** Lebar modal: "md" (bawaan) atau "xl" untuk panel yang lebar. */
+  size?: "md" | "xl";
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -31,7 +33,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-panel border border-line bg-card p-6 shadow-soft"
+        className={`w-full ${size === "xl" ? "max-w-3xl" : "max-w-lg"} rounded-panel border border-line bg-card p-6 shadow-soft`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3 border-b border-line mb-4">
