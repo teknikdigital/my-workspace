@@ -2,7 +2,8 @@
   "port": 4545,
   "allowedOrigins": [
     "http://localhost:3000",
-    "http://127.0.0.1:3000"
+    "http://127.0.0.1:3000",
+    "https://digitalworkspace.vercel.app"
   ],
   "maxUploadMB": 200,
   "inboxName": "_Masuk",

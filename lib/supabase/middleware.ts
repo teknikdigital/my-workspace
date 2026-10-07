@@ -78,7 +78,8 @@ export async function updateSession(request: NextRequest) {
   if (
     pathname.startsWith("/api/whatsapp") ||
     pathname.startsWith("/api/activity") ||
-    pathname.startsWith("/api/cron")
+    pathname.startsWith("/api/cron") ||
+    pathname === "/privacy" // kebijakan privasi publik (syarat Meta)
   ) {
     return response;
   }

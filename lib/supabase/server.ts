@@ -1,7 +1,40 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient as createJsClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { AsyncLocalStorage } from "async_hooks";
+
+/**
+ * Sesi pengguna tanpa cookie browser (mis. pesan WhatsApp diproses server).
+ * Di dalam runAsUser(), semua createClient() memakai sesi ini sehingga RLS & auth.getUser() tetap berlaku
+ * persis seperti pengguna sedang login di web. Di luar runAsUser(), perilaku lama (cookie) tidak berubah.
+ */
+interface UserSessionCtx {
+  accessToken: string;
+  refreshToken: string;
+  client?: Promise<any>;
+}
+const sessionStore = new AsyncLocalStorage<UserSessionCtx>();
+
+export function runAsUser<T>(session: { access_token: string; refresh_token: string }, fn: () => Promise<T>): Promise<T> {
+  return sessionStore.run({ accessToken: session.access_token, refreshToken: session.refresh_token }, fn);
+}
+
+async function sessionClient(ctx: UserSessionCtx) {
+  const c = createJsClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const { error } = await c.auth.setSession({ access_token: ctx.accessToken, refresh_token: ctx.refreshToken });
+  if (error) throw new Error(`Sesi pengguna tidak valid: ${error.message}`);
+  return c;
+}
 
 export async function createClient() {
+  const ctx = sessionStore.getStore();
+  if (ctx) {
+    // satu client per pemrosesan pesan (setSession cukup sekali)
+    ctx.client ||= sessionClient(ctx);
+    return (await ctx.client) as ReturnType<typeof createServerClient>;
+  }
   const cookieStore = cookies();
 
   return createServerClient(
