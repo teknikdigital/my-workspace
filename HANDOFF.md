@@ -26,9 +26,11 @@ Port Web: 3000
 | Projects & Applications Management | Selesai | Managed via Supabase RLS |
 | Local Agent Launcher | Selesai | HTTP server 127.0.0.1:4545 |
 | AI Assistant & Chat History | Selesai | Support Claude Task & document context |
+| WhatsApp Webhook & Privacy Page | Selesai | Endpoint `/api/whatsapp` & `/privacy` |
 | Activity Logger Script | Selesai | `scripts/log-activity.mjs` |
 
 ## Keputusan Teknis
+- 2026-10-07: Penambahan fitur WhatsApp Webhook & Halaman Privasi.
 - 2026-10-07: Penambahan komentar JSDoc `formatBytes` dan perbaikan urutan timestamp pada test suite.
 
 ## Masalah Diketahui
@@ -39,4 +41,5 @@ Port Web: 3000
 
 ## Riwayat Perubahan
 <!-- terbaru di atas, simpan maksimal 30 entri -->
+- 2026-10-07: Tambah WhatsApp Webhook dan halaman privasi (app/api/whatsapp/route.ts, app/privacy/page.tsx, lib/whatsapp/*)
 - 2026-10-07: Tambah komentar formatBytes di lib/local-agent/client.ts & persiapkan push git (lib/local-agent/client.ts, tests/aiConversations.test.ts, HANDOFF.md)
