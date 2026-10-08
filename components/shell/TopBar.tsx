@@ -62,7 +62,7 @@ export function TopBar({ displayName, roleLabel, email }: TopBarProps) {
         <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight text-ink">
           <div className="relative h-8 w-8 shrink-0">
             <Image
-              src="/logomyworkspace.png"
+              src="/logo-mark.png"
               alt="Logo"
               fill
               className="object-contain"

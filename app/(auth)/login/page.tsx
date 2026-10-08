@@ -15,7 +15,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
       <div className="flex items-center gap-3 mb-7">
         <div className="relative h-10 w-10 shrink-0">
           <Image
-            src="/logomyworkspace.png"
+            src="/logo-mark.png"
             alt="My Workspace Logo"
             fill
             className="object-contain"

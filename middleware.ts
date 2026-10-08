@@ -15,7 +15,8 @@ export const config = {
      * - images, svg, icons (static asset extensions)
      * - api/activity (uses its own Bearer token auth)
      * - api/whatsapp (uses its own HMAC signature auth) - Fase 5
+     * - manifest.webmanifest (PWA, harus bisa dibaca tanpa login)
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/activity|api/whatsapp|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|api/activity|api/whatsapp|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
