@@ -81,7 +81,7 @@ describe("sendAiQuery kanal Telegram", () => {
       .mockResolvedValueOnce(reply({ role: "assistant", content: "Ini HANDOFF RapiUang." }));
     vi.stubGlobal("fetch", fetchMock);
     const r = await sendAiQuery([{ role: "user", content: "kirim handoff rapiuang" }], null, { channel: "telegram" });
-    expect(r.files?.[0]).toMatchObject({ title: "HANDOFF.md", source: "stored", format: "docx" });
+    expect(r.files?.[0]).toMatchObject({ title: "HANDOFF", source: "stored", format: "docx" });
     const toolMsg = JSON.parse(fetchMock.mock.calls[1][1].body).messages.find((m: any) => m.role === "tool");
     expect(JSON.parse(toolMsg.content)).toMatchObject({ success: true, other_matches: ["📚 HANDOFF lama"] });
   });

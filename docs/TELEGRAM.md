@@ -30,6 +30,11 @@ dengan secret token, dan memasang menu `/baru` `/bantuan`.
 - Hapus: `node scripts/telegram-webhook.mjs delete`
 - Alamat lain: `--url https://domain-lain/api/telegram`
 
+## 3a. Sekali klik: `Mulai-Workspace.bat`
+Double-click `Mulai-Workspace.bat` (folder project): menyalakan agent, web (`npm run dev`) dan bot Telegram (polling)
+dalam jendela yang di-minimize. Aman diklik ulang (yang sudah jalan tidak digandakan).
+Otomatis setiap login Windows: `Pasang-AutoStart-Workspace.bat` (hapus: `Hapus-AutoStart-Workspace.bat`).
+
 ## 3b. Mode lokal (tanpa Vercel, mis. jaringan kantor memblokir Vercel)
 Telegram tidak bisa mengirim webhook ke `localhost`, jadi dipakai polling:
 ```
@@ -55,7 +60,10 @@ Kirim pesan apa saja ke bot, salin angka ID yang dibalas, isi `TELEGRAM_OWNER_ID
 - **Minta dibuatkan dokumen**: "buatkan TOR rapat koordinasi isolator", "buat notulen dari catatan ini".
   Bot mengirim file **Word (.docx)** (A4, nomor halaman). Minta "dalam markdown" untuk file .md.
   Salinannya tersimpan sebagai catatan "📝 judul" di My Workspace.
-- **Minta dokumen tersimpan**: "kirim HANDOFF RapiUang", "kirim TOR isolator kemarin" (mencari judul catatan/dokumen).
+- **Minta dokumen tersimpan**: "kirim NIB Rally District", "kirim HANDOFF RapiUang", "kirim TOR isolator kemarin".
+  Pencarian per kata pada nama file/judul dan nama project. Untuk dokumen yang pernah diunggah lewat My Workspace,
+  bot mengirim **file asli** (mis. PDF) dari folder `_Masuk` project di laptop (hanya mode lokal / laptop menyala).
+  Bila file asli tidak ada, dikirim versi teksnya (.docx). File di luar folder `_Masuk` tidak pernah dikirim.
 
 ## 7. Claude Code dari Telegram (antrian)
 Contoh: "suruh claude tambah filter kategori di RapiUang". Bot mengirim **kartu** dengan tombol **▶️ Jalankan** / **✖️ Batal**.

@@ -297,7 +297,9 @@ ${ctx.channel && FILE_CHANNELS.includes(ctx.channel) ? `11. DOKUMEN (kanal ini b
    - Diminta MEMBUAT dokumen (TOR, notulen, surat, laporan, SOP, proposal, ringkasan, checklist, dll): tulis isi LENGKAP dan rapi dalam Markdown,
      lalu panggil \`create_document_file\` (format docx kecuali pengguna minta md). Dokumen formal default Bahasa Indonesia.
      Pakai data workspace yang relevan (task, project, aktivitas, dokumen) bila diminta. Jangan mengarang nomor/tanggal resmi; beri tanda [isi] bila belum diketahui.
-   - Diminta MENGIRIM/MINTA dokumen yang sudah ada: panggil \`get_document_file\` dengan sebagian judulnya.
+   - Diminta MENGIRIM/MINTA dokumen yang sudah ada (termasuk file yang pernah diunggah, mis. "kirim NIB Rally District pdf"):
+     panggil \`get_document_file\` dengan kata kunci (mis. "NIB", project "Rally District"). Jangan bilang tidak ada sebelum memanggil tool.
+     Bila tidak ditemukan, sebutkan available_documents dari hasil tool.
    - Setelah tool berhasil: jawab 1-2 kalimat (judul + isi pokok). JANGAN menyalin isi dokumen ke jawaban.
    - Untuk pengeditan dokumen yang sudah dibuat: buat ulang versi lengkapnya dengan judul yang sama (catatan lama diperbarui).` : ""}
 

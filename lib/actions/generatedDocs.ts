@@ -1,15 +1,16 @@
 /**
  * Dokumen untuk dikirim lewat chat (Telegram):
  *  - saveGeneratedDocument: simpan dokumen buatan AI sebagai catatan "📝 judul" (bisa diminta lagi kapan saja)
- *  - findDocumentForFile: cari catatan/dokumen tersimpan berdasarkan judul untuk dikirim sebagai file
+ *  - findDocumentForFile : cari dokumen tersimpan (📚 teks utuh unggahan, 📄 fakta, 📝 buatan AI) dengan
+ *                          pencocokan per kata, mis. "NIB Rally District" cocok dengan "📚 nib_rally_district.pdf"
  * Berjalan dengan sesi pengguna (RLS), dipanggil dari tool AI.
  */
 
 import { createClient } from "@/lib/supabase/server";
 import { findProjectByName } from "@/lib/actions/projectAssist";
+import { pickDocument, splitOriginalPath, plainTitle, DOC_TAGS, GENERATED_DOC_TAG } from "@/lib/documents/findDocument";
 
-export const GENERATED_DOC_TAG = "dokumen-dibuat";
-const FULL_DOC_TAG = "dokumen-lengkap";
+export { GENERATED_DOC_TAG };
 
 async function projectId(project?: string): Promise<{ id: string | null; name: string | null; error?: string }> {
   if (!project?.trim()) return { id: null, name: null };
@@ -36,43 +37,39 @@ export async function saveGeneratedDocument(input: { title: string; markdown: st
   return { success: true, note: title, project: p.name, updated: !!existing?.length };
 }
 
-const PREFIXES = ["📝", "📚", "📄"];
-/** Buang ikon awalan judul catatan ("📝 TOR ..." -> "TOR ..."). */
-function plainTitle(t: string): string {
-  const s = String(t || "");
-  const p = PREFIXES.find((x) => s.startsWith(x));
-  return (p ? s.slice(p.length) : s).trim();
-}
-
-function rank(n: { title: string; tags?: string[] | null }, q: string): number {
-  const t = plainTitle(n.title).toLowerCase();
-  let score = 0;
-  if (t === q) score += 100;
-  else if (t.startsWith(q)) score += 50;
-  if (n.tags?.includes(GENERATED_DOC_TAG) || n.tags?.includes(FULL_DOC_TAG)) score += 10;
-  return score;
-}
-
 export async function findDocumentForFile(input: { query: string; project?: string }) {
-  const q = String(input.query || "").trim().toLowerCase();
-  if (q.length < 2) return { success: false as const, error: "Sebutkan judul/nama dokumen yang dicari" };
+  const query = String(input.query || "").trim();
+  if (query.length < 2) return { success: false as const, error: "Sebutkan judul/nama dokumen yang dicari" };
   const supabase = await createClient();
   const p = await projectId(input.project);
   if (p.error) return { success: false as const, error: p.error };
-  const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
-  let sel = supabase.from("notes").select("title, content, body, tags, updated_at, project:projects(name)").ilike("title", like);
-  if (p.id) sel = sel.eq("project_id", p.id);
-  const { data, error } = await sel.order("updated_at", { ascending: false }).limit(10);
+
+  // kandidat: semua dokumen (unggahan, fakta, buatan AI) + catatan biasa yang judulnya memuat kata pertama
+  let docs = supabase.from("notes").select("title, content, body, tags, updated_at, project:projects(name)").overlaps("tags", DOC_TAGS);
+  if (p.id) docs = docs.eq("project_id", p.id);
+  const { data, error } = await docs.order("updated_at", { ascending: false }).limit(300);
   if (error) return { success: false as const, error: error.message };
-  const rows = ((data || []) as any[]).filter((r) => (r.content || r.body || "").trim());
-  if (!rows.length) return { success: false as const, error: `Dokumen/catatan berjudul "${input.query}" tidak ditemukan` };
-  rows.sort((a, b) => rank(b, q) - rank(a, q));
-  const best = rows[0];
+  let rows = (data || []) as any[];
+  const like = `%${query.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+  const { data: plain } = await supabase.from("notes").select("title, content, body, tags, updated_at, project:projects(name)").ilike("title", like).limit(10);
+  rows = rows.concat(((plain || []) as any[]).filter((r) => !rows.some((x) => x.title === r.title)));
+
+  const picked = pickDocument(rows, query);
+  if (!picked) {
+    const sample = rows.slice(0, 8).map((r) => plainTitle(r.title));
+    return {
+      success: false as const,
+      error: `Dokumen "${query}" tidak ditemukan`,
+      available_documents: sample.length ? sample : undefined,
+    };
+  }
+  const { text, path } = splitOriginalPath(String(picked.best.content || picked.best.body || ""));
   return {
     success: true as const,
-    title: plainTitle(best.title),
-    content: String(best.content || best.body),
-    project: best.project?.name || null,
-    others: rows.slice(1, 5).map((r) => r.title),
+    title: plainTitle(picked.best.title),
+    content: text,
+    originalPath: path,
+    project: picked.best.project?.name || null,
+    others: picked.others.map((r: any) => plainTitle(r.title)),
   };
 }

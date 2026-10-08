@@ -184,6 +184,33 @@ describe("handleTelegram: dokumen keluar", () => {
     expect(calls.some((c) => c.method === "sendChatAction" && c.body.action === "upload_document")).toBe(true);
   });
 
+  it("dokumen unggahan: file ASLI dari folder _Masuk yang dikirim; bila tidak ada, versi teks + penjelasan", async () => {
+    const fs = await import("fs");
+    const os = await import("os");
+    const path = await import("path");
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), "mw-tg-"));
+    fs.mkdirSync(path.join(base, "_Masuk"));
+    fs.writeFileSync(path.join(base, "_Masuk", "nib_rally_district.pdf"), "%PDF-1.4 NIB");
+    const apps = path.join(base, "apps.json");
+    fs.writeFileSync(apps, JSON.stringify({ apps: [{ id: "rally", folder: base, processes: [{ cwd: base }] }] }));
+    process.env.MW_AGENT_APPS = apps;
+    turnResult = {
+      text: "Ini NIB Rally District.",
+      conversationId: "c",
+      files: [
+        { title: "nib_rally_district", format: "docx", markdown: "teks NIB", source: "stored", originalPath: path.join(base, "_Masuk", "nib_rally_district.pdf") },
+        { title: "lama", format: "docx", markdown: "teks lama", source: "stored", originalPath: path.join(base, "_Masuk", "hilang.pdf") },
+      ],
+    };
+    await handleTelegram(msg("kirim NIB rally district pdf"));
+    delete process.env.MW_AGENT_APPS;
+    const docs = calls.filter((c) => c.method === "sendDocument");
+    expect(docs[0].body).toMatchObject({ name: "nib_rally_district.pdf", caption: "nib_rally_district (file asli)" });
+    expect(docs[0].body.data.toString()).toBe("%PDF-1.4 NIB");
+    expect(docs[1].body.name).toBe("lama.docx");
+    expect(sent().some((t) => /tidak ditemukan lagi di laptop/.test(t))).toBe(true);
+  });
+
   it("fileBuffer: subjudul membedakan dokumen baru & tersimpan", async () => {
     const mammoth: any = await import("mammoth");
     const a = await fileBuffer({ title: "A", format: "docx", markdown: "isi", source: "stored" });

@@ -15,6 +15,7 @@ import { buildFileBlock } from "@/lib/ai/fileBlocks";
 import { canExtract, fileKind } from "@/lib/files/extractText";
 import { extractTextFromBuffer } from "@/lib/files/extractServer";
 import { markdownToDocx, safeFileBase } from "@/lib/documents/markdownToDocx";
+import { readLocalOriginal } from "@/lib/files/localOriginal";
 import type { GeneratedFile } from "@/lib/ai/generatedFile";
 import type { ClaudeTaskDraft } from "@/lib/ai/claudeTask";
 import { cancelJob, createDraftJob, queueJob, setJobMessage } from "@/lib/claudeQueue/jobs";
@@ -95,6 +96,17 @@ async function sendFiles(chatId: number, files: GeneratedFile[]) {
   try {
     for (const f of files) {
       try {
+        // dokumen unggahan: kirim FILE ASLI bila masih ada di folder _Masuk laptop
+        if (f.originalPath) {
+          const orig = await readLocalOriginal(f.originalPath);
+          if (orig.ok) {
+            const r = await sendDocument(chatId, orig.data, orig.name, `${f.title} (file asli)`);
+            if (r.ok) continue;
+            log("gagal kirim file asli:", r.status, r.error);
+          } else {
+            await replyMarkdown(chatId, `ℹ️ ${orig.reason}. Dikirim versi teksnya.`);
+          }
+        }
         const { data, name } = await fileBuffer(f);
         const r = await sendDocument(chatId, data, name, f.title);
         if (!r.ok) {

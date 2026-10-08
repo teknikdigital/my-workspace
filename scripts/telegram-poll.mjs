@@ -93,7 +93,7 @@ async function main() {
       updates = await call("getUpdates", { offset, timeout: once ? 0 : 30, allowed_updates: ["message", "callback_query"] }, 40000);
     } catch (e) {
       if (e.code === 409) {
-        console.error("Webhook aktif lagi (409). Polling dihentikan. Jalankan ulang skrip ini bila ingin mode lokal.");
+        console.error("Konflik 409: webhook Vercel aktif lagi ATAU skrip polling lain sedang berjalan (cek jendela lain). Polling dihentikan.");
         process.exit(1);
       }
       console.error("Gagal mengambil pesan:", mask(e.message), "- coba lagi 5 detik");

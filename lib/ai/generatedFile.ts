@@ -10,6 +10,8 @@ export interface GeneratedFile {
   markdown: string;
   /** created = dibuat AI barusan; stored = dokumen yang sudah tersimpan di My Workspace */
   source: "created" | "stored";
+  /** Lokasi file asli di laptop (dokumen unggahan). Bila bisa dibaca, file asli yang dikirim. */
+  originalPath?: string | null;
 }
 
 export const MAX_DOCUMENT_CHARS = 60_000;

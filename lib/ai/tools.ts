@@ -388,12 +388,13 @@ export const FILE_TOOL_DEFINITIONS = [
   {
     name: "get_document_file",
     description:
-      "Kirim dokumen/catatan yang SUDAH TERSIMPAN di My Workspace sebagai file (mis. 'kirim TOR isolator kemarin', 'minta dokumen HANDOFF RapiUang'). " +
-      "Mencari berdasarkan judul. Untuk file asli (PDF/scan) yang tersimpan hanya teks hasil bacaannya.",
+      "Kirim dokumen yang SUDAH TERSIMPAN di My Workspace sebagai file: dokumen yang pernah diunggah (mis. NIB, kontrak, PDF), " +
+      "dokumen buatan AI, atau catatan (mis. 'kirim NIB Rally District', 'kirim TOR isolator kemarin', 'minta HANDOFF RapiUang'). " +
+      "Pencarian per kata pada judul/nama file dan nama project. Untuk dokumen unggahan, FILE ASLI (mis. PDF) dikirim bila masih ada di laptop; bila tidak, versi teksnya.",
     parameters: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Sebagian judul dokumen/catatan" },
+        query: { type: "string", description: "Kata kunci judul/nama file, mis. 'NIB', 'TOR isolator', 'HANDOFF'" },
         project: { type: "string", description: "Nama project (opsional, mempersempit pencarian)" },
         format: { type: "string", enum: ["docx", "md"], description: "Default docx" },
       },
@@ -591,15 +592,17 @@ export async function executeAiTool(toolName: string, args: any, ctx?: AiToolCon
         const doc = await findDocumentForFile({ query: args.query, project: args.project });
         if (!doc.success) return doc;
         (ctx.files ||= []).push({
-          title: doc.title,
+          title: doc.title.replace(/\.(pdf|docx?|xlsx?|pptx|txt|md|csv|png|jpe?g)$/i, ""),
           format: args.format === "md" ? "md" : "docx",
           markdown: doc.content.slice(0, 60_000),
           source: "stored",
+          originalPath: doc.originalPath,
         });
         return {
           success: true,
           file: doc.title,
           project: doc.project,
+          original_file: doc.originalPath ? "akan dikirim bila masih ada di laptop" : "tidak ada (dikirim versi teks)",
           other_matches: doc.others.length ? doc.others : undefined,
           note: "File akan dikirim otomatis. Sebut judulnya; bila other_matches ada, tawarkan dokumen lain itu.",
         };
