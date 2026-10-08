@@ -184,6 +184,31 @@
         "mode": "edit",
         "project": "Rally District"
       }
+    },
+    {
+      "id": "koleksi-pribadi",
+      "name": "Semua Project Pribadi",
+      "group": "Koleksi Claude",
+      "description": "Baca & analisis lintas project pribadi (My Workspace, Rapiuang, Rally District). Baca saja.",
+      "folder": "D:\\Project",
+      "claude": {
+        "mode": "read",
+        "project": "Semua Project",
+        "addDirs": [
+          "D:\\Rally District"
+        ]
+      }
+    },
+    {
+      "id": "koleksi-biofarma",
+      "name": "Bio Farma Digitalisasi",
+      "group": "Koleksi Claude",
+      "description": "Baca & analisis semua project di D:\\Biofarma\\Digitalisasi. Baca saja.",
+      "folder": "D:\\Biofarma\\Digitalisasi",
+      "claude": {
+        "mode": "read",
+        "project": "Bio Farma Digitalisasi"
+      }
     }
   ]
 }

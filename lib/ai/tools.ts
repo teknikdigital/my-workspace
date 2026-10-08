@@ -342,7 +342,12 @@ export const AI_TOOL_DEFINITIONS = [
     parameters: {
       type: "object",
       properties: {
-        project: { type: "string", description: "Nama project (mis. RapiUang, Rally District, My Workspace, SIAP TPM)" },
+        project: {
+          type: "string",
+          description:
+            "Nama project (mis. RapiUang, Rally District, My Workspace, SIAP TPM). Untuk analisis LINTAS banyak project pakai koleksi baca-saja: " +
+            "'Semua Project' (project pribadi: My Workspace, RapiUang, Rally District) atau 'Bio Farma Digitalisasi' (semua project di D:\\Biofarma\\Digitalisasi), mode read.",
+        },
         instruction: {
           type: "string",
           description:

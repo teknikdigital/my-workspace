@@ -104,8 +104,30 @@ function allowedTools(mode) {
   const base = ["Read", "Glob", "Grep", ...shellRules(READ_SHELL)];
   return mode === "edit" ? [...base, "Edit", "Write", ...shellRules(EDIT_SHELL)] : base;
 }
-function disallowedTools(mode) {
-  const d = [...shellRules(DENY_SHELL), ...DENY_READ, "WebFetch", "WebSearch"];
+/**
+ * Path absolut ke bentuk aturan izin Claude Code: Windows "D:\\Rally District" -> "//d/Rally District"
+ * (Claude Code menormalkan path Windows ke bentuk POSIX /d/...; awalan // = absolut).
+ */
+function absRuleRoot(dir) {
+  const s = String(dir || "").replace(/\\/g, "/").replace(/\/+$/, "");
+  const m = s.match(/^([a-zA-Z]):\/(.*)$/);
+  if (m) return `//${m[1].toLowerCase()}/${m[2]}`;
+  return s.startsWith("/") ? `/${s}` : null;
+}
+
+/** Larangan baca .env & token di folder tambahan (--add-dir); aturan "./**" hanya berlaku di folder utama. */
+function denyReadFor(dirs) {
+  const out = [];
+  for (const d of dirs || []) {
+    const root = absRuleRoot(d);
+    if (!root) continue;
+    for (const f of [".env", ".env.local", ".env.development", ".env.production", ".env.*.local", ".agent-token"]) out.push(`Read(${root}/**/${f})`);
+  }
+  return out;
+}
+
+function disallowedTools(mode, addDirs) {
+  const d = [...shellRules(DENY_SHELL), ...DENY_READ, ...denyReadFor(addDirs), "WebFetch", "WebSearch"];
   return mode === "edit" ? d : [...d, "Edit", "Write", "NotebookEdit"];
 }
 
@@ -138,7 +160,7 @@ function runRules(mode) {
  * Susun argumen `claude`. Prompt tepat setelah -p (sebelum opsi daftar seperti --allowedTools
  * yang menerima banyak nilai), sesuai contoh resmi `claude -p "..." --allowedTools "..."`.
  */
-function buildArgs({ prompt, mode, model, resume, settings }) {
+function buildArgs({ prompt, mode, model, resume, settings, addDirs }) {
   const args = [
     "-p",
     prompt,
@@ -156,7 +178,8 @@ function buildArgs({ prompt, mode, model, resume, settings }) {
   ];
   if (resume) args.push("--resume", resume);
   if (settings) args.push("--settings", settings);
-  args.push("--disallowedTools", disallowedTools(mode).join(","));
+  for (const d of addDirs || []) args.push("--add-dir", d);
+  args.push("--disallowedTools", disallowedTools(mode, addDirs).join(","));
   args.push("--allowedTools", allowedTools(mode).join(","));
   return args;
 }
@@ -174,7 +197,11 @@ function normalizeRequest(body, appCfg, globalCfg) {
     return { error: "Project ini dikunci BACA SAJA untuk Claude Code (apps.json: claude.mode = \"read\")." };
   const model = MODELS.includes(body.model) ? body.model : (globalCfg && globalCfg.defaultModel) || "sonnet";
   const resume = typeof body.resume === "string" && /^[0-9a-f-]{8,64}$/i.test(body.resume) ? body.resume : null;
-  return { prompt, mode, model, resume, settings: (appCfg && appCfg.settings) || null };
+  // Folder tambahan yang boleh dibaca Claude (koleksi project), mis. ["D:\\Rally District"]
+  const addDirs = Array.isArray(appCfg && appCfg.addDirs)
+    ? appCfg.addDirs.filter((d) => typeof d === "string" && /^([a-zA-Z]:[\\/]|\/)/.test(d)).slice(0, 10)
+    : [];
+  return { prompt, mode, model, resume, settings: (appCfg && appCfg.settings) || null, addDirs };
 }
 
 /** Lokasi claude.exe: apps.json claude.path, lalu instalasi native, lalu PATH. */
@@ -332,7 +359,7 @@ function createClaudeRunner(deps) {
   function logActivity(app, run) {
     const script = path.join(deps.scriptsDir, "log-activity.mjs");
     if (!fs.existsSync(script)) return;
-    const folder = app.folder || app.processes[0].cwd;
+    const folder = app.folder || (app.processes[0] && app.processes[0].cwd);
     const args = [
       script,
       "--project",
@@ -364,8 +391,10 @@ function createClaudeRunner(deps) {
     if (prev && prev.status === "running") return { error: "Claude Code masih mengerjakan instruksi sebelumnya di project ini", status: 409 };
     const maxConcurrent = (globalCfg && globalCfg.maxConcurrent) || 2;
     if (runningCount() >= maxConcurrent) return { error: `Maksimal ${maxConcurrent} instruksi berjalan bersamaan`, status: 429 };
-    const folder = app.folder || app.processes[0].cwd;
-    if (!fs.existsSync(folder)) return { error: `Folder project tidak ditemukan: ${folder}`, status: 400 };
+    const folder = app.folder || (app.processes[0] && app.processes[0].cwd);
+    if (!folder || !fs.existsSync(folder)) return { error: `Folder project tidak ditemukan: ${folder}`, status: 400 };
+    const missing = (opts.addDirs || []).filter((d) => !fs.existsSync(d));
+    if (missing.length) return { error: `Folder tambahan tidak ditemukan: ${missing.join(", ")}`, status: 400 };
 
     const exe = resolveClaudePath(globalCfg);
     const args = buildArgs(opts);
@@ -555,5 +584,7 @@ module.exports = {
   disallowedTools,
   runRules,
   createClaudeRunner,
+  absRuleRoot,
+  denyReadFor,
   MODELS,
 };

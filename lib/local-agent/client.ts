@@ -44,8 +44,10 @@ export interface LocalApp {
   status: AppStatus;
   processes: LocalProcess[];
   actions: LocalAction[];
-  /** Claude Code (agent >= 1.4.0). mode "read" = terkunci baca saja. */
-  claude?: { mode: ClaudeMode; project?: string; running: boolean; lastSessionId: string | null };
+  /** Claude Code (agent >= 1.4.0). mode "read" = terkunci baca saja. addDirs = folder tambahan (koleksi). */
+  claude?: { mode: ClaudeMode; project?: string; running: boolean; lastSessionId: string | null; addDirs?: string[] };
+  /** Koleksi khusus Claude (agent >= 1.5.1): tanpa proses, hanya untuk dibaca/dianalisis Claude Code. */
+  claudeOnly?: boolean;
 }
 
 export type ClaudeMode = "edit" | "read";

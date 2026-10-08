@@ -443,12 +443,24 @@ function AppCard({
             <MonitorPlay className="h-5 w-5 shrink-0 text-teal" />
             <h3 className="font-bold text-ink truncate">{app.name}</h3>
           </div>
-          <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-semibold whitespace-nowrap", meta.text)}>
-            <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
-            {meta.label}
-          </span>
+          {app.claudeOnly ? (
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-semibold text-teal">
+              <Bot className="h-3.5 w-3.5" /> Koleksi Claude
+            </span>
+          ) : (
+            <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-semibold whitespace-nowrap", meta.text)}>
+              <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
+              {meta.label}
+            </span>
+          )}
         </div>
         {app.description && <p className="text-xs text-mute">{app.description}</p>}
+        {app.claudeOnly && (
+          <p className="break-words text-[11px] text-mute">
+            📁 {[app.folder, ...(app.claude?.addDirs || [])].filter(Boolean).join(" · ")}
+            {app.claude?.mode !== "edit" && " · baca saja"}
+          </p>
+        )}
         <div className="flex flex-wrap gap-1.5">
           {app.processes.map((p) => (
             <span
@@ -464,6 +476,19 @@ function AppCard({
         </div>
       </div>
 
+      {app.claudeOnly ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {app.claude && (
+            <ActionBtn
+              icon={app.claude.running ? Loader2 : Bot}
+              label={app.claude.running ? "Claude bekerja..." : "Tanya Claude"}
+              primary
+              onClick={onClaude}
+            />
+          )}
+          <ActionBtn icon={FolderOpen} label="Folder" loading={busy === "openFolder"} onClick={() => onAction("openFolder")} />
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center gap-2">
         {isDown || app.status === "partial" ? (
           <ActionBtn primary icon={Play} label="Start" loading={busy === "start"} onClick={() => onAction("start")} />
@@ -508,6 +533,7 @@ function AppCard({
           />
         )}
       </div>
+      )}
 
       {app.actions.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">

@@ -30,6 +30,16 @@ dengan secret token, dan memasang menu `/baru` `/bantuan`.
 - Hapus: `node scripts/telegram-webhook.mjs delete`
 - Alamat lain: `--url https://domain-lain/api/telegram`
 
+## Mode 24 jam (Vercel) vs mode lokal
+| | Mode 24 jam (webhook Vercel) | Mode lokal (polling) |
+|---|---|---|
+| Chat AI, task, catatan, buat dokumen Word, baca file kiriman | ✅ kapan saja | hanya saat laptop menyala |
+| Kirim **file asli** unggahan (PDF di `_Masuk`) | ❌ (dikirim versi teks) | ✅ |
+| Tombol ▶️ Claude Code | antri; dikerjakan saat laptop + agent menyala | ✅ |
+Pindah ke 24 jam: isi env Telegram + `MW_OWNER_EMAIL` di Vercel, Redeploy, lalu `node scripts/telegram-webhook.mjs`.
+Setelah webhook aktif, `telegram-poll.mjs` (dan `Mulai-Workspace.bat`) otomatis tidak menjalankan polling.
+Kembali ke lokal: `node scripts/telegram-poll.mjs --paksa`.
+
 ## 3a. Sekali klik: `Mulai-Workspace.bat`
 Double-click `Mulai-Workspace.bat` (folder project): menyalakan agent, web (`npm run dev`) dan bot Telegram (polling)
 dalam jendela yang di-minimize. Aman diklik ulang (yang sudah jalan tidak digandakan).
@@ -41,7 +51,7 @@ Telegram tidak bisa mengirim webhook ke `localhost`, jadi dipakai polling:
 npm run dev                          # terminal 1
 node scripts/telegram-poll.mjs       # terminal 2
 ```
-- Skrip menonaktifkan webhook Vercel selama mode lokal. Kembali ke Vercel: `node scripts/telegram-webhook.mjs`.
+- Bila webhook Vercel aktif (mode 24 jam), skrip berhenti sendiri tanpa mengubah apa pun. `--paksa` = matikan webhook dan pakai mode lokal.
 - Bot hanya menjawab selama laptop menyala dan kedua terminal berjalan.
 - Butuh akses ke `api.telegram.org` (bila diblokir jaringan kantor: pakai hotspot HP).
 

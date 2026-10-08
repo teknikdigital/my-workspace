@@ -48,3 +48,17 @@ Bisa juga langsung tanpa AI: **Work > Lokal > kartu project > tombol Claude**.
 ## Aturan untuk sesi Claude Code manual
 Salin `docs/CLAUDE_GLOBAL.md` ke `C:\Users\julia\.claude\CLAUDE.md` agar sesi manual (terminal / aplikasi desktop) juga
 membaca dan memperbarui HANDOFF.md serta mencatat ke My Workspace.
+
+## Koleksi project (baca lintas banyak project)
+Entri `apps.json` tanpa `processes` = koleksi khusus Claude (agent >= 1.5.1). Contoh:
+```json
+{ "id": "koleksi-pribadi", "name": "Semua Project Pribadi", "group": "Koleksi Claude",
+  "folder": "D:\\Project",
+  "claude": { "mode": "read", "project": "Semua Project", "addDirs": ["D:\\Rally District"] } }
+```
+- `folder` = folder utama (cwd Claude), `addDirs` = folder tambahan (`claude --add-dir`).
+- `.env`, `.env.local`, `.agent-token` tetap dilarang dibaca di folder utama DAN folder tambahan.
+- Di halaman Lokal tampil sebagai kartu "Koleksi Claude" (tombol Tanya Claude + Folder).
+- Dari AI Asisten/Telegram: "suruh claude bandingkan cara login di semua project" -> project "Semua Project" (baca saja).
+- Koleksi terpasang: **Semua Project** (D:\Project + D:\Rally District) dan **Bio Farma Digitalisasi** (D:\Biofarma\Digitalisasi).
+  Catatan: isi kode yang dibaca Claude dikirim ke Anthropic untuk diproses; tetap mode baca saja.

@@ -9,8 +9,8 @@
  *   3. Chat ke bot. Ctrl+C untuk berhenti.
  *
  * Catatan:
- *  - Webhook dan polling tidak bisa aktif bersamaan. Skrip ini MENONAKTIFKAN webhook.
- *    Untuk kembali ke Vercel: node scripts/telegram-webhook.mjs
+ *  - Webhook dan polling tidak bisa aktif bersamaan. Bila webhook (mode 24 jam Vercel) aktif, skrip ini
+ *    TIDAK berjalan, kecuali dengan --paksa (webhook dimatikan). Kembali ke Vercel: node scripts/telegram-webhook.mjs
  *  - Bot hanya menjawab selama laptop menyala dan kedua terminal berjalan.
  *  - Alamat lain: --target http://localhost:3001/api/telegram
  * Membaca TELEGRAM_BOT_TOKEN & TELEGRAM_WEBHOOK_SECRET dari .env.local. Token tidak pernah dicetak.
@@ -79,6 +79,12 @@ async function main() {
   const me = await call("getMe");
   const info = await call("getWebhookInfo");
   if (info.url) {
+    if (!args.includes("--paksa")) {
+      // Mode 24 jam (webhook Vercel) aktif: polling lokal tidak dibutuhkan dan TIDAK boleh mematikan webhook.
+      console.log(`Webhook aktif ke ${info.url} (mode 24 jam). Polling lokal tidak dijalankan.`);
+      console.log("Untuk kembali ke mode lokal: node scripts/telegram-poll.mjs --paksa");
+      return;
+    }
     await call("deleteWebhook", { drop_pending_updates: false });
     console.log(`Webhook ${info.url} dinonaktifkan (kembali ke Vercel: node scripts/telegram-webhook.mjs).`);
   }

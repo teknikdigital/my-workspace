@@ -32,7 +32,7 @@ const claudeCode = require("./claude.cjs");
 const { createQueuePoller } = require("./queue.cjs");
 const os = require("os");
 
-const VERSION = "1.5.0";
+const VERSION = "1.5.1";
 const ROOT = __dirname;
 const IS_WIN = process.platform === "win32";
 const CONFIG_PATH = process.env.AGENT_CONFIG || path.join(ROOT, "apps.json");
@@ -77,8 +77,14 @@ function loadConfig() {
     if (!/^[a-z0-9-]+$/.test(app.id || "")) throw new Error(`apps.json: id tidak valid: ${app.id}`);
     if (ids.has(app.id)) throw new Error(`apps.json: id ganda: ${app.id}`);
     ids.add(app.id);
-    if (!Array.isArray(app.processes) || app.processes.length === 0)
-      throw new Error(`apps.json: ${app.id} wajib punya minimal 1 proses`);
+    // Koleksi khusus Claude (tanpa proses): cukup "folder" + "claude", mis. untuk membaca banyak project sekaligus
+    if (!Array.isArray(app.processes) || app.processes.length === 0) {
+      if (typeof app.folder !== "string" || !app.folder) throw new Error(`apps.json: ${app.id} wajib punya minimal 1 proses atau "folder"`);
+      app.processes = [];
+      app.claudeOnly = true;
+    }
+    if (app.claude && app.claude.addDirs !== undefined && !Array.isArray(app.claude.addDirs))
+      throw new Error(`apps.json: ${app.id} claude.addDirs harus array folder`);
     for (const p of app.processes) {
       if (!p.name || !p.cwd || !p.command) throw new Error(`apps.json: proses di ${app.id} wajib punya name, cwd, command`);
       if (p.port && !Number.isInteger(p.port)) throw new Error(`apps.json: port ${app.id}/${p.name} harus angka`);
@@ -235,11 +241,13 @@ async function appStatus(app) {
     embeddable: app.embeddable !== false,
     folder: appFolder(app),
     inbox: inboxDir(app),
-    status: aggregate(processes),
+    status: app.claudeOnly ? "stopped" : aggregate(processes),
     processes,
+    claudeOnly: !!app.claudeOnly,
     claude: {
       mode: (app.claude && app.claude.mode) || "read", // "edit" = boleh mengubah file, "read" = terkunci baca saja
       project: (app.claude && app.claude.project) || app.name, // nama project di My Workspace
+      addDirs: (app.claude && app.claude.addDirs) || [],
       running: claudeRunner.isRunning(app.id),
       lastSessionId: claudeRunner.lastSession(app.id),
     },
@@ -402,6 +410,7 @@ function runAction(app, a) {
 }
 
 async function startApp(app) {
+  if (app.claudeOnly) return [{ name: app.id, skipped: "koleksi khusus Claude, tidak ada proses" }];
   const results = [];
   for (const p of app.processes) {
     if (p.port && (await isPortOpen(p.port)) && !isAlive(getProcState(app.id, p.name))) {
@@ -544,7 +553,7 @@ const WIN_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
 /** Folder project: field "folder" di apps.json, atau cwd proses pertama. */
 function appFolder(app) {
-  return app.folder || app.processes[0].cwd;
+  return app.folder || (app.processes[0] && app.processes[0].cwd);
 }
 
 function inboxDir(app) {
@@ -770,7 +779,7 @@ const server = http.createServer(async (req, res) => {
         }
       }
       if (req.method === "POST" && action === "open-folder") {
-        openFolder(app.processes[0].cwd);
+        openFolder(appFolder(app));
         return send(res, 200, { ok: true });
       }
     }

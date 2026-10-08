@@ -170,3 +170,39 @@ describe("poller antrian agent", () => {
     expect(matchApp("", APPS)).toBeNull();
   });
 });
+
+describe("koleksi project (folder tambahan)", () => {
+  it("--add-dir & larangan .env absolut untuk folder tambahan", () => {
+    const opts = cc.normalizeRequest(
+      { prompt: "Bandingkan login di semua project", mode: "read" },
+      { mode: "read", addDirs: ["D:\\Rally District", "relatif/tidak-boleh", 5] },
+      GLOBAL
+    );
+    expect(opts.addDirs).toEqual(["D:\\Rally District"]);
+    const a: string[] = cc.buildArgs(opts);
+    expect(a[a.indexOf("--add-dir") + 1]).toBe("D:\\Rally District");
+    const denied = a[a.indexOf("--disallowedTools") + 1];
+    expect(denied).toContain("Read(//d/Rally District/**/.env)");
+    expect(denied).toContain("Read(//d/Rally District/**/.env.local)");
+    expect(denied).toContain("Read(./**/.env)");
+    expect(denied).toContain("Edit"); // tetap baca saja
+    expect(a[a.length - 2]).toBe("--allowedTools");
+  });
+  it("absRuleRoot", () => {
+    expect(cc.absRuleRoot("D:\\Biofarma\\Digitalisasi\\")).toBe("//d/Biofarma/Digitalisasi");
+    expect(cc.absRuleRoot("/home/x/proj")).toBe("//home/x/proj");
+    expect(cc.absRuleRoot("relatif")).toBeNull();
+    expect(cc.buildArgs(cc.normalizeRequest({ prompt: "x analisis", mode: "read" }, { mode: "read" }, GLOBAL))).not.toContain("--add-dir");
+  });
+  it("koleksi tanpa proses bisa dijalankan (folder dari app.folder); folder tambahan hilang ditolak", () => {
+    let spawned: any = null;
+    const runner = cc.createClaudeRunner({ spawn: (_e: string, args: string[], o: any) => ((spawned = { args, cwd: o.cwd }), fakeChild()), killTree: async () => {}, log: () => {}, logDir: os.tmpdir(), scriptsDir: "/x", execPath: "node" });
+    const app = { id: "koleksi", name: "Semua Project", folder: os.tmpdir(), processes: [], claude: { mode: "read", addDirs: [os.tmpdir()] } };
+    const opts = cc.normalizeRequest({ prompt: "analisis semua", mode: "read" }, app.claude, GLOBAL);
+    expect(runner.start(app, opts, GLOBAL)).toMatchObject({ ok: true });
+    expect(spawned.cwd).toBe(os.tmpdir());
+    expect(spawned.args).toContain("--add-dir");
+    const bad = { ...app, id: "k2", claude: { mode: "read", addDirs: ["/tidak/ada/folder"] } };
+    expect(runner.start(bad, cc.normalizeRequest({ prompt: "analisis semua", mode: "read" }, bad.claude, GLOBAL), GLOBAL)).toMatchObject({ status: 400, error: expect.stringMatching(/tidak ditemukan/) });
+  });
+});
