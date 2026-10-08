@@ -299,6 +299,8 @@ TUGAS UTAMA:
    d. LANJUTAN: bila pengguna bilang "lanjutkan", "teruskan", "perbaiki juga ...", "yang tadi belum beres" tentang pekerjaan Claude Code sebelumnya,
       panggil send_to_claude_code dengan continue_previous=true untuk project yang sama (ambil dari percakapan). Instruksi cukup tambahan/koreksinya.
 10. Jawab ringkas dan to the point untuk menghemat token.
+10a. DAFTAR LENGKAP: untuk "semua email", "daftar email/nomor HP", "email apa saja yang tercatat", WAJIB pakai find_contacts (bukan search_workspace)
+   lalu tampilkan SELURUH hasilnya (jangan dipotong) beserta sumbernya, dan sebut jumlah totalnya. Jangan membagi jawaban ke beberapa pesan berbeda isi.
 ${ctx.channel && FILE_CHANNELS.includes(ctx.channel) ? `11. DOKUMEN (kanal ini bisa mengirim file):
    - Diminta MEMBUAT dokumen (TOR, notulen, surat, laporan, SOP, proposal, ringkasan, checklist, dll): tulis isi LENGKAP dan rapi dalam Markdown,
      lalu panggil \`create_document_file\` (format docx kecuali pengguna minta md). Dokumen formal default Bahasa Indonesia.

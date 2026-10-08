@@ -1,4 +1,6 @@
 import { searchWorkspace } from "@/lib/actions/search";
+import { searchNotesForAi } from "@/lib/actions/noteSearch";
+import { findContacts } from "@/lib/actions/contactScan";
 import { createTask, getTasks } from "@/lib/actions/tasks";
 import { createNote } from "@/lib/actions/notes";
 import { getProjectById } from "@/lib/actions/projects";
@@ -32,7 +34,9 @@ import { registerResource, registerApplication, updateProjectDetails } from "@/l
 export const AI_TOOL_DEFINITIONS = [
   {
     name: "search_workspace",
-    description: "Cari data project, aplikasi, resource link, akun, task, atau catatan di workspace.",
+    description:
+      "Cari data project, aplikasi, resource link, akun, task, atau catatan di workspace (maks 5 per jenis, catatan sampai 20 dengan potongan isi). " +
+      "Untuk daftar LENGKAP email atau nomor telepon gunakan find_contacts.",
     parameters: {
       type: "object",
       properties: {
@@ -42,6 +46,18 @@ export const AI_TOOL_DEFINITIONS = [
         },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "find_contacts",
+    description:
+      "Kumpulkan SEMUA alamat email atau nomor telepon yang tercatat di workspace (catatan, akun, Vault (label & identifier saja), project, aplikasi, resource, task, link pribadi), " +
+      "lengkap dengan sumbernya. Gunakan untuk pertanyaan 'semua email saya', 'daftar nomor HP', 'email apa saja yang tercatat'.",
+    parameters: {
+      type: "object",
+      properties: {
+        kind: { type: "string", enum: ["email", "phone"], description: "email (default) atau phone" },
+      },
     },
   },
   {
@@ -423,8 +439,13 @@ export async function executeAiTool(toolName: string, args: any, ctx?: AiToolCon
   try {
     switch (toolName) {
       case "search_workspace": {
-        const results = await searchWorkspace(args.query);
+        const [results, notes] = await Promise.all([searchWorkspace(args.query), searchNotesForAi(args.query).catch(() => [])]);
+        // catatan: ganti 5 hasil + 80 karakter dengan sampai 20 catatan + potongan isi di sekitar kata kunci
+        if (notes.length) (results as any).note = notes;
         return { success: true, results };
+      }
+      case "find_contacts": {
+        return await findContacts(args.kind === "phone" ? "phone" : "email");
       }
       case "get_today_tasks": {
         const allTasks = await getTasks();
