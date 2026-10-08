@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+// Font disimpan di repo (app/fonts, lisensi OFL) agar build tidak bergantung pada Google Fonts.
+// Build Vercel 509544c gagal karena next/font/google tidak bisa memproses balasan Google Fonts.
+const plusJakarta = localFont({
+  src: "./fonts/plus-jakarta-sans-latin-wght-normal.woff2",
+  weight: "200 800",
   variable: "--font-sans",
   display: "swap",
 });
