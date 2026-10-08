@@ -391,6 +391,8 @@ function createClaudeRunner(deps) {
       child: null,
       timer: null,
     };
+    // dipanggil sekali saat run berakhir (dipakai antrian Telegram, agent/queue.cjs)
+    run.onFinish = typeof opts.onFinish === "function" ? opts.onFinish : null;
     runs.set(app.id, run);
     try {
       if (fs.existsSync(run.logFile) && fs.statSync(run.logFile).size > 5 * 1024 * 1024) fs.renameSync(run.logFile, `${run.logFile}.1`);
@@ -478,6 +480,15 @@ function createClaudeRunner(deps) {
                 : `Gagal: ${short(run.error, 200)}`,
       });
       deps.log(`[${app.id}] claude ${run.runId} ${run.status} code=${code}`);
+      if (run.onFinish) {
+        const cb = run.onFinish;
+        run.onFinish = null;
+        try {
+          cb(publicRun(run));
+        } catch (e) {
+          deps.log(`[${app.id}] onFinish error: ${e.message}`);
+        }
+      }
       // Catat ke My Workspace hanya bila benar-benar mengubah sesuatu
       if (run.status === "done" && run.mode === "edit") logActivity(app, run);
     });

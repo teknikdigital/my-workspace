@@ -4,6 +4,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const executed: string[] = [];
 vi.mock("@/lib/ai/tools", () => ({
   AI_TOOL_DEFINITIONS: [{ name: "create_project", description: "x", parameters: { type: "object", properties: {} } }],
+  FILE_CHANNELS: ["telegram"],
+  toolsFor: () => [{ name: "create_project", description: "x", parameters: { type: "object", properties: {} } }],
   executeAiTool: vi.fn(async (name: string) => {
     executed.push(name);
     return { success: true, name };

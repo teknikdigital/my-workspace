@@ -16,6 +16,9 @@
  *
  * v1.4.0: Claude Code. POST /apps/:id/claude menjalankan `claude -p` di folder project
  * (lihat claude.cjs). Project bisa dikunci baca saja lewat "claude": { "mode": "read" }.
+ * v1.5.0: Antrian dari Telegram (queue.cjs). Agent memeriksa My Workspace tiap 10 detik dan
+ * menjalankan instruksi yang sudah ditekan "▶️ Jalankan" di Telegram. Token integrasi sama dengan
+ * log-activity.mjs (%USERPROFILE%\.myworkspace-token atau env MW_TOKEN). Alamat: apps.json queue.url / env MW_URL.
  */
 "use strict";
 
@@ -26,8 +29,10 @@ const path = require("path");
 const crypto = require("crypto");
 const { spawn, execFile } = require("child_process");
 const claudeCode = require("./claude.cjs");
+const { createQueuePoller } = require("./queue.cjs");
+const os = require("os");
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const ROOT = __dirname;
 const IS_WIN = process.platform === "win32";
 const CONFIG_PATH = process.env.AGENT_CONFIG || path.join(ROOT, "apps.json");
@@ -91,6 +96,8 @@ function loadConfig() {
     inboxName: cfg.inboxName || "_Masuk",
     // Claude Code: { path, defaultModel, timeoutMinutes, maxConcurrent }
     claude: cfg.claude || {},
+    // Antrian Telegram: { enabled (default true), url (default env MW_URL / http://localhost:3000), intervalSeconds (default 10) }
+    queue: cfg.queue || {},
     apps: cfg.apps,
   };
 }
@@ -422,6 +429,36 @@ const claudeRunner = claudeCode.createClaudeRunner({
   execPath: process.execPath,
 });
 
+/* Antrian Claude Code dari Telegram */
+const MW_TOKEN_FILE = path.join(os.homedir(), ".myworkspace-token");
+function queueSettings() {
+  const q = config.queue || {};
+  let token = process.env.MW_TOKEN || "";
+  if (!token) {
+    try {
+      token = fs.readFileSync(MW_TOKEN_FILE, "utf8").trim();
+    } catch (_) {
+      token = "";
+    }
+  }
+  return {
+    enabled: q.enabled !== false,
+    url: String(q.url || process.env.MW_URL || "http://localhost:3000").replace(/\/+$/, ""),
+    token,
+    intervalMs: Math.max(5, Number(q.intervalSeconds) || 10) * 1000,
+  };
+}
+const queuePoller = createQueuePoller({
+  fetch: (...a) => fetch(...a),
+  log,
+  version: VERSION,
+  settings: queueSettings,
+  apps: () => config.apps,
+  globalCfg: () => config.claude,
+  runner: claudeRunner,
+  normalizeRequest: claudeCode.normalizeRequest,
+});
+
 let claudeVersionCache = null;
 function claudeInfo() {
   const exe = claudeCode.resolveClaudePath(config.claude);
@@ -652,8 +689,14 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, await claudeInfo());
     }
 
+    if (req.method === "GET" && url.pathname === "/queue") {
+      return send(res, 200, queuePoller.status());
+    }
+
     if (req.method === "POST" && url.pathname === "/reload-config") {
       config = loadConfig();
+      queuePoller.stop();
+      queuePoller.start();
       log("apps.json dimuat ulang");
       return send(res, 200, { ok: true, count: config.apps.length });
     }
@@ -744,6 +787,7 @@ const server = http.createServer(async (req, res) => {
 /* ------------------------------------------------------------------ */
 async function shutdown(sig) {
   log(`Agent berhenti (${sig}), menghentikan aplikasi yang dijalankan agent...`);
+  queuePoller.stop();
   const tasks = [];
   for (const st of procs.values()) if (isAlive(st)) tasks.push(killTree(st.pid));
   for (const pid of claudeRunner.pids()) tasks.push(killTree(pid));
@@ -773,6 +817,7 @@ server.listen(config.port, "127.0.0.1", async () => {
   log(`My Workspace Agent v${VERSION} aktif di http://127.0.0.1:${config.port}`);
   log(`Origin diizinkan: ${config.allowedOrigins.join(", ")}`);
   log(`Aplikasi terdaftar: ${config.apps.map((a) => a.id).join(", ")}`);
+  queuePoller.start();
   for (const app of config.apps) {
     if (app.autoStart) {
       try {

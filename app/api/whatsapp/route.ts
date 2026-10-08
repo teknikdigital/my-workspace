@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractMessages, verifySignature } from "@/lib/whatsapp/core";
 import { handleInbound } from "@/lib/whatsapp/handler";
+import { runAfterResponse } from "@/lib/chatbot/background";
 
 /**
  * Webhook WhatsApp Cloud API (Meta).
@@ -21,13 +22,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ error: "Verifikasi gagal" }, { status: 403 });
 }
 
-/** Jalankan pekerjaan setelah respons dikirim. Di Vercel memakai waitUntil; di server Node biasa promise tetap jalan. */
-function runAfterResponse(p: Promise<unknown>) {
-  const ctx = (globalThis as any)[Symbol.for("@vercel/request-context")]?.get?.();
-  if (ctx?.waitUntil) ctx.waitUntil(p);
-  else p.catch((e) => console.error("[whatsapp]", e));
-}
-
 export async function POST(req: NextRequest) {
   const raw = await req.text();
   if (!verifySignature(raw, req.headers.get("x-hub-signature-256"), process.env.WHATSAPP_APP_SECRET)) {
@@ -43,6 +37,6 @@ export async function POST(req: NextRequest) {
   const messages = extractMessages(payload);
   if (messages.length) runAfterResponse((async () => {
     for (const m of messages) await handleInbound(m); // berurutan agar riwayat rapi
-  })());
+  })(), "whatsapp");
   return NextResponse.json({ ok: true });
 }

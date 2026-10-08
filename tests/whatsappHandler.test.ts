@@ -6,7 +6,7 @@ vi.mock("@/lib/whatsapp/api", () => ({
   sendText: vi.fn(async (to: string, body: string) => (sent.push({ to, body }), { ok: true, status: 200 })),
   markReadTyping: vi.fn(async () => ({ ok: true, status: 200 })),
 }));
-vi.mock("@/lib/whatsapp/session", () => ({
+vi.mock("@/lib/chatbot/ownerSession", () => ({
   getOwnerSession: vi.fn(async () => ({ access_token: "at", refresh_token: "rt" })),
 }));
 const aiCalls: { messages: any[]; conversationId: string | null; session: string | undefined }[] = [];

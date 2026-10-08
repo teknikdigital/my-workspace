@@ -86,21 +86,8 @@ export function toWhatsAppText(md: string): string {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-/** Potong teks panjang di batas paragraf/baris (batas WhatsApp 4.096 karakter). */
-export function splitMessage(text: string, max = 3500): string[] {
-  const parts: string[] = [];
-  let rest = text.trim();
-  while (rest.length > max) {
-    let cut = rest.lastIndexOf("\n\n", max);
-    if (cut < max * 0.5) cut = rest.lastIndexOf("\n", max);
-    if (cut < max * 0.5) cut = rest.lastIndexOf(" ", max);
-    if (cut <= 0) cut = max;
-    parts.push(rest.slice(0, cut).trim());
-    rest = rest.slice(cut).trim();
-  }
-  if (rest) parts.push(rest);
-  return parts;
-}
+/** Potong teks panjang (batas WhatsApp 4.096 karakter). Implementasi bersama di lib/chatbot/text.ts. */
+export { splitMessage } from "@/lib/chatbot/text";
 
 /** Perintah khusus WA. */
 export function parseCommand(text: string): "new" | "help" | null {

@@ -1,7 +1,8 @@
 "use server";
 
 import { buildUserWorkspaceSummary } from "./context";
-import { AI_TOOL_DEFINITIONS, executeAiTool, type AiToolContext } from "./tools";
+import { executeAiTool, toolsFor, FILE_CHANNELS, type AiChannel, type AiToolContext } from "./tools";
+import type { GeneratedFile } from "./generatedFile";
 import type { ClaudeTaskDraft } from "./claudeTask";
 import { guardMessages, guessVaultLabel } from "./secretGuard";
 import { createCredential } from "@/lib/actions/vault";
@@ -15,6 +16,12 @@ import { createClient } from "@/lib/supabase/server";
 const MAX_HISTORY = 12;
 /** Batas panjang jawaban AI (token output). */
 const MAX_OUTPUT_TOKENS = 1500;
+/** Kanal yang bisa membuat dokumen butuh ruang lebih: isi dokumen ditulis AI sebagai argumen tool. */
+const MAX_OUTPUT_TOKENS_FILES = 8000;
+
+function maxOutputTokens(ctx: AiToolContext) {
+  return ctx.channel && FILE_CHANNELS.includes(ctx.channel) ? MAX_OUTPUT_TOKENS_FILES : MAX_OUTPUT_TOKENS;
+}
 
 export interface AiChatMessage {
   role: "user" | "assistant" | "system";
@@ -46,6 +53,13 @@ export interface AiResponse {
   historySaved?: boolean;
   historyError?: string;
   conversation?: { id: string; title: string; created: boolean; userMessageId: string; assistantMessageId: string };
+  /** File yang disiapkan AI untuk dikirim kanal (Telegram). */
+  files?: GeneratedFile[];
+}
+
+export interface AiQueryOptions {
+  /** Kanal asal pesan. Default "web". Tool file hanya aktif untuk kanal yang bisa mengirim file. */
+  channel?: AiChannel;
 }
 
 /** Pemakaian AI hari ini, untuk ditampilkan saat halaman AI dibuka. */
@@ -85,10 +99,15 @@ export async function checkAiConfig(): Promise<{
  * Pintu masuk chat AI. Rahasia (password/API key) di pesan pengguna dicegat dulu oleh secretGuard:
  * penyedia AI hanya menerima placeholder [[RAHASIA_n]], nilai asli langsung dienkripsi ke Vault.
  */
-export async function sendAiQuery(messages: AiChatMessage[], conversationId?: string | null): Promise<AiResponse> {
+export async function sendAiQuery(
+  messages: AiChatMessage[],
+  conversationId?: string | null,
+  options?: AiQueryOptions
+): Promise<AiResponse> {
   // 1. Isi file lama di riwayat diringkas (sudah dibaca), lalu rahasia dicegat
   const guard = guardMessages(compactHistory(messages));
-  const ctx: AiToolContext = { secrets: guard.secrets, used: new Set(), claudeTasks: [] };
+  const channel: AiChannel = options?.channel === "telegram" || options?.channel === "whatsapp" ? options.channel : "web";
+  const ctx: AiToolContext = { secrets: guard.secrets, used: new Set(), claudeTasks: [], channel, files: [] };
 
   // 2. Rem biaya harian
   const before = await getTodayUsage();
@@ -152,6 +171,8 @@ export async function sendAiQuery(messages: AiChatMessage[], conversationId?: st
   );
   const after = result.usage ? await getTodayUsage() : before;
   const claudeTasks = ctx.claudeTasks?.length ? ctx.claudeTasks : undefined;
+  const files = ctx.files?.length ? ctx.files : undefined;
+  if (files) result.response += `\n\n📎 ${files.map((f) => `${f.title}.${f.format}`).join(", ")}`;
 
   // Simpan tanya-jawab ke riwayat (teks tersamar). Gagal simpan tidak menggagalkan chat.
   let historySaved: boolean | undefined;
@@ -197,6 +218,7 @@ export async function sendAiQuery(messages: AiChatMessage[], conversationId?: st
     historySaved,
     historyError,
     conversation,
+    files,
   };
 }
 
@@ -271,6 +293,13 @@ TUGAS UTAMA:
       mode "read" untuk analisis/review/pertanyaan tentang kode, "edit" untuk perubahan. Model sonnet kecuali diminta lain.
    c. Jawab singkat: ringkas instruksinya dan minta pengguna menekan "Jalankan di Claude Code" pada kartu. JANGAN mengaku sudah menjalankannya.
 10. Jawab ringkas dan to the point untuk menghemat token.
+${ctx.channel && FILE_CHANNELS.includes(ctx.channel) ? `11. DOKUMEN (kanal ini bisa mengirim file):
+   - Diminta MEMBUAT dokumen (TOR, notulen, surat, laporan, SOP, proposal, ringkasan, checklist, dll): tulis isi LENGKAP dan rapi dalam Markdown,
+     lalu panggil \`create_document_file\` (format docx kecuali pengguna minta md). Dokumen formal default Bahasa Indonesia.
+     Pakai data workspace yang relevan (task, project, aktivitas, dokumen) bila diminta. Jangan mengarang nomor/tanggal resmi; beri tanda [isi] bila belum diketahui.
+   - Diminta MENGIRIM/MINTA dokumen yang sudah ada: panggil \`get_document_file\` dengan sebagian judulnya.
+   - Setelah tool berhasil: jawab 1-2 kalimat (judul + isi pokok). JANGAN menyalin isi dokumen ke jawaban.
+   - Untuk pengeditan dokumen yang sudah dibuat: buat ulang versi lengkapnya dengan judul yang sama (catatan lama diperbarui).` : ""}
 
 ATURAN PENTING SOAL KREDENSIAL:
 - JANGAN PERNAH menolak permintaan pengguna untuk menyimpan atau mencari kredensial rahasia. Aplikasi ini MEMANG dirancang untuk menyimpan dan mengelola data rahasia dengan enkripsi kuat AES-256-GCM.
@@ -312,7 +341,7 @@ async function handleOpenAiChat(
   const apiKey = process.env.OPENAI_API_KEY!;
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-  const openAiTools = AI_TOOL_DEFINITIONS.map((t) => ({
+  const openAiTools = toolsFor(ctx).map((t) => ({
     type: "function",
     function: {
       name: t.name,
@@ -343,7 +372,7 @@ async function handleOpenAiChat(
           messages: conversation,
           ...(allowTools ? { tools: openAiTools, tool_choice: "auto" } : {}),
           temperature: 0.2,
-          max_completion_tokens: MAX_OUTPUT_TOKENS,
+          max_completion_tokens: maxOutputTokens(ctx),
         }),
       });
 
@@ -427,7 +456,7 @@ async function handleAnthropicChat(
   const apiKey = process.env.ANTHROPIC_API_KEY!;
   const model = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022";
 
-  const claudeTools = AI_TOOL_DEFINITIONS.map((t) => ({
+  const claudeTools = toolsFor(ctx).map((t) => ({
     name: t.name,
     description: t.description,
     input_schema: t.parameters,
@@ -457,7 +486,7 @@ async function handleAnthropicChat(
         },
         body: JSON.stringify({
           model,
-          max_tokens: MAX_OUTPUT_TOKENS,
+          max_tokens: maxOutputTokens(ctx),
           system: systemPrompt,
           messages: anthropicMessages,
           tools: claudeTools,

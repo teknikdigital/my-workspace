@@ -30,7 +30,9 @@ describe("Vault AES-256-GCM Encryption", () => {
     const encrypted = encryptVaultValue(originalSecret);
 
     // Tamper the ciphertext
-    const tampered = "a" + encrypted.encryptedValue.slice(1);
+    // ganti karakter pertama dengan nilai yang PASTI berbeda (bukan selalu "a": bisa sama dengan aslinya)
+    const first = encrypted.encryptedValue[0];
+    const tampered = (first === "a" ? "b" : "a") + encrypted.encryptedValue.slice(1);
     expect(() =>
       decryptVaultValue(tampered, encrypted.iv, encrypted.authTag)
     ).toThrow();

@@ -12,8 +12,18 @@ export interface AiToolContext {
   used: Set<string>; // placeholder yang sudah disimpan ke Vault
   /** Draf instruksi Claude Code (dijalankan dari browser setelah pengguna menekan Jalankan). */
   claudeTasks?: ClaudeTaskDraft[];
+  /** Kanal chat. Tool file (buat/kirim dokumen) hanya tersedia di kanal yang bisa mengirim file. */
+  channel?: AiChannel;
+  /** File yang disiapkan AI untuk dikirim kanal (Telegram). */
+  files?: GeneratedFile[];
 }
+
+export type AiChannel = "web" | "telegram" | "whatsapp";
+/** Kanal yang bisa mengirim file ke pengguna. */
+export const FILE_CHANNELS: AiChannel[] = ["telegram"];
 import { makeClaudeTask, type ClaudeTaskDraft } from "@/lib/ai/claudeTask";
+import { makeGeneratedFile, type GeneratedFile } from "@/lib/ai/generatedFile";
+import { findDocumentForFile, saveGeneratedDocument } from "@/lib/actions/generatedDocs";
 import { ensureProject, checkProjectReadiness, findProjectByName } from "@/lib/actions/projectAssist";
 import { saveDocumentFacts, readProjectDocument } from "@/lib/actions/documentMemory";
 import { logActivity, getActivitySummary } from "@/lib/actions/activityLog";
@@ -357,6 +367,46 @@ export const AI_TOOL_DEFINITIONS = [
   },
 ];
 
+/** Tool khusus kanal yang bisa mengirim file (Telegram). */
+export const FILE_TOOL_DEFINITIONS = [
+  {
+    name: "create_document_file",
+    description:
+      "Buat dokumen (TOR, notulen, surat, laporan, SOP, proposal, ringkasan, checklist, dll) dan kirim ke pengguna sebagai file Word (.docx) atau Markdown. " +
+      "Tulis ISI LENGKAP dokumen di content (Markdown: # judul bagian, daftar, tabel pipa). Dokumen juga disimpan sebagai catatan '📝 judul' di My Workspace.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Judul dokumen, mis. 'TOR Rapat Koordinasi Isolator'" },
+        content: { type: "string", description: "Isi lengkap dokumen dalam Markdown. Jangan ulangi judul sebagai heading pertama." },
+        format: { type: "string", enum: ["docx", "md"], description: "Default docx. md hanya bila pengguna meminta Markdown." },
+        project: { type: "string", description: "Project terkait (opsional)" },
+      },
+      required: ["title", "content"],
+    },
+  },
+  {
+    name: "get_document_file",
+    description:
+      "Kirim dokumen/catatan yang SUDAH TERSIMPAN di My Workspace sebagai file (mis. 'kirim TOR isolator kemarin', 'minta dokumen HANDOFF RapiUang'). " +
+      "Mencari berdasarkan judul. Untuk file asli (PDF/scan) yang tersimpan hanya teks hasil bacaannya.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Sebagian judul dokumen/catatan" },
+        project: { type: "string", description: "Nama project (opsional, mempersempit pencarian)" },
+        format: { type: "string", enum: ["docx", "md"], description: "Default docx" },
+      },
+      required: ["query"],
+    },
+  },
+];
+
+/** Daftar tool untuk konteks ini: tool file hanya untuk kanal yang bisa mengirim file. */
+export function toolsFor(ctx?: AiToolContext) {
+  return ctx?.channel && FILE_CHANNELS.includes(ctx.channel) ? [...AI_TOOL_DEFINITIONS, ...FILE_TOOL_DEFINITIONS] : AI_TOOL_DEFINITIONS;
+}
+
 export async function executeAiTool(toolName: string, args: any, ctx?: AiToolContext): Promise<any> {
   try {
     switch (toolName) {
@@ -520,6 +570,38 @@ export async function executeAiTool(toolName: string, args: any, ctx?: AiToolCon
           project: draft.project,
           mode: draft.mode,
           note: "Kartu instruksi tampil di chat. Minta pengguna memeriksa lalu menekan 'Jalankan di Claude Code' (hanya bisa dari laptop dengan agent menyala).",
+        };
+      }
+      case "create_document_file": {
+        if (!ctx?.channel || !FILE_CHANNELS.includes(ctx.channel)) return { success: false, error: "Kanal ini tidak bisa mengirim file" };
+        const { file, error } = makeGeneratedFile(args, ctx.files?.length || 0);
+        if (error || !file) return { success: false, error };
+        const saved = await saveGeneratedDocument({ title: file.title, markdown: file.markdown, project: args.project });
+        (ctx.files ||= []).push(file);
+        return {
+          success: true,
+          file: `${file.title}.${file.format}`,
+          saved_as_note: saved.success ? saved.note : null,
+          note: "File akan dikirim otomatis ke chat. Jawab 1-2 kalimat saja (isi utama dokumen), JANGAN salin isi dokumen di jawaban.",
+        };
+      }
+      case "get_document_file": {
+        if (!ctx?.channel || !FILE_CHANNELS.includes(ctx.channel)) return { success: false, error: "Kanal ini tidak bisa mengirim file" };
+        if ((ctx.files?.length || 0) >= 3) return { success: false, error: "Maksimal 3 file per pesan" };
+        const doc = await findDocumentForFile({ query: args.query, project: args.project });
+        if (!doc.success) return doc;
+        (ctx.files ||= []).push({
+          title: doc.title,
+          format: args.format === "md" ? "md" : "docx",
+          markdown: doc.content.slice(0, 60_000),
+          source: "stored",
+        });
+        return {
+          success: true,
+          file: doc.title,
+          project: doc.project,
+          other_matches: doc.others.length ? doc.others : undefined,
+          note: "File akan dikirim otomatis. Sebut judulnya; bila other_matches ada, tawarkan dokumen lain itu.",
         };
       }
       case "get_project_details": {

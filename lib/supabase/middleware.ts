@@ -74,9 +74,11 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Allow public API webhook endpoints (e.g. WhatsApp webhook, Activity webhook, Cron)
+  // Allow public API webhook endpoints (e.g. WhatsApp/Telegram webhook, Activity webhook, Cron)
   if (
     pathname.startsWith("/api/whatsapp") ||
+    pathname.startsWith("/api/telegram") ||
+    pathname.startsWith("/api/claude-queue") || // agent laptop, auth token integrasi
     pathname.startsWith("/api/activity") ||
     pathname.startsWith("/api/cron") ||
     pathname === "/privacy" // kebijakan privasi publik (syarat Meta)

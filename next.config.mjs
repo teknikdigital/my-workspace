@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    // Dipakai bot Telegram di server (baca PDF/Word/Excel, buat .docx): dimuat langsung oleh Node, tidak dibundel webpack.
+    serverComponentsExternalPackages: ["unpdf", "mammoth", "docx", "xlsx"],
+  },
   async headers() {
     return [
       {
