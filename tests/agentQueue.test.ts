@@ -80,12 +80,12 @@ function fakeRunner() {
     },
     finish(appId: string, run: any) {
       running.delete(appId);
-      started.find((s) => s.app === appId).opts.onFinish(run);
+      [...started].reverse().find((s) => s.app === appId).opts.onFinish(run);
     },
   };
 }
 
-function poller(runner: any, token = "tok") {
+function poller(runner: any, token = "tok", gitflow?: any) {
   const logs: string[] = [];
   const p = createQueuePoller({
     fetch: fakeFetch,
@@ -96,6 +96,7 @@ function poller(runner: any, token = "tok") {
     globalCfg: () => GLOBAL,
     runner,
     normalizeRequest: cc.normalizeRequest,
+    ...(gitflow ? { gitflow } : {}),
   });
   return { p, logs };
 }
@@ -116,9 +117,21 @@ describe("poller antrian agent", () => {
     queue.push(job());
     await p.tick();
     expect(r.started[0]).toMatchObject({ app: "rapiuang", opts: { mode: "edit", model: "sonnet", prompt: "Tambah filter kategori transaksi" } });
-    r.finish("rapiuang", { status: "done", summary: "Filter ditambah", files: ["src/a.tsx"], error: null, result: { costUsd: 0.05 } });
+    r.finish("rapiuang", { status: "done", summary: "Filter ditambah", files: ["src/a.tsx"], error: null, result: { costUsd: 0.05, text: "## Hasil\nFilter kategori ditambahkan di halaman transaksi." } });
     await new Promise((x) => setTimeout(x, 0));
-    expect(reports).toEqual([{ id: job().id, action: "result", status: "done", summary: "Filter ditambah", files: ["src/a.tsx"], error: null, costUsd: 0.05 }]);
+    expect(reports).toEqual([
+      {
+        id: job().id,
+        action: "result",
+        status: "done",
+        summary: "Filter ditambah",
+        files: ["src/a.tsx"],
+        error: null,
+        costUsd: 0.05,
+        answer: "## Hasil\nFilter kategori ditambahkan di halaman transaksi.",
+        sessionId: null,
+      },
+    ]);
     expect(p.status()).toMatchObject({ enabled: true, lastJob: { project: "RapiUang" } });
   });
 
@@ -171,6 +184,41 @@ describe("poller antrian agent", () => {
   });
 });
 
+describe("lanjutkan sesi (resume)", () => {
+  const SID = "0f5a9c7e-1111-4222-8333-444455556666";
+  it("job lanjutan meneruskan sesi lama & ID sesi baru dilaporkan", async () => {
+    const r = fakeRunner();
+    const { p } = poller(r);
+    queue.push({ ...job(), resume: SID } as any);
+    await p.tick();
+    expect(r.started[0].opts.resume).toBe(SID);
+    r.finish("rapiuang", { status: "done", summary: "ok", files: [], result: { text: "Lanjutan beres", sessionId: SID } });
+    await new Promise((x) => setTimeout(x, 0));
+    expect(reports[0]).toMatchObject({ status: "done", sessionId: SID, answer: "Lanjutan beres" });
+  });
+  it("sesi lama tidak ada di laptop: diulang sekali sebagai sesi baru, dengan catatan", async () => {
+    const r = fakeRunner();
+    const { p, logs } = poller(r);
+    queue.push({ ...job(), resume: SID } as any);
+    await p.tick();
+    r.finish("rapiuang", { status: "error", error: "No conversation found with session ID: " + SID, files: [] });
+    expect(r.started).toHaveLength(2);
+    expect(r.started[1].opts.resume).toBeNull();
+    expect(logs.some((l) => /diulang sebagai sesi baru/.test(l))).toBe(true);
+    r.finish("rapiuang", { status: "done", summary: "ok", files: [], result: { text: "Beres", sessionId: "aaaaaaaa-bbbb" } });
+    await new Promise((x) => setTimeout(x, 0));
+    expect(reports).toHaveLength(1);
+    expect(reports[0].answer).toMatch(/^ℹ️ Sesi sebelumnya tidak ditemukan[\s\S]*Beres$/);
+  });
+  it("job biasa tanpa resume", async () => {
+    const r = fakeRunner();
+    const { p } = poller(r);
+    queue.push(job());
+    await p.tick();
+    expect(r.started[0].opts.resume).toBeNull();
+  });
+});
+
 describe("koleksi project (folder tambahan)", () => {
   it("--add-dir & larangan .env absolut untuk folder tambahan", () => {
     const opts = cc.normalizeRequest(
@@ -204,5 +252,73 @@ describe("koleksi project (folder tambahan)", () => {
     expect(spawned.args).toContain("--add-dir");
     const bad = { ...app, id: "k2", claude: { mode: "read", addDirs: ["/tidak/ada/folder"] } };
     expect(runner.start(bad, cc.normalizeRequest({ prompt: "analisis semua", mode: "read" }, bad.claude, GLOBAL), GLOBAL)).toMatchObject({ status: 400, error: expect.stringMatching(/tidak ditemukan/) });
+  });
+});
+
+describe("commit & push otomatis dari antrian", () => {
+  const realGf = require("../agent/gitflow.cjs");
+  function fakeGit() {
+    let open: () => void = () => {};
+    const gate = new Promise<void>((r) => (open = r));
+    const calls: any[] = [];
+    return {
+      calls,
+      open: () => open(),
+      gitConfig: () => ({ repo: "/repo", push: true, verify: null }),
+      jobGitOptions: realGf.jobGitOptions,
+      snapshot: async () => (calls.push("snapshot"), { ok: true, branch: "main" }),
+      finalize: async (_c: any, _s: any, info: any) => {
+        calls.push(["finalize", info.summary, info.opts]);
+        await gate;
+        return { status: "pushed", commit: "abc1234", text: "📦 Commit `abc1234` di main (2 file).\n🚀 Di-push ke origin/main." };
+      },
+    };
+  }
+  it("hasil commit ditempel di jawaban; project terkunci selama verifikasi/commit", async () => {
+    const r = fakeRunner();
+    const g = fakeGit();
+    const { p } = poller(r, "tok", g);
+    queue.push(job());
+    await p.tick();
+    expect(g.calls[0]).toBe("snapshot");
+    r.finish("rapiuang", { status: "done", summary: "Filter ditambah", files: ["a.ts"], result: { text: "Filter ditambahkan." } });
+    await new Promise((x) => setTimeout(x, 0));
+    expect(reports).toHaveLength(0); // laporan menunggu commit selesai
+    g.open();
+    await new Promise((x) => setTimeout(x, 10));
+    expect(reports[0].answer).toBe("Filter ditambahkan.\n\n📦 Commit `abc1234` di main (2 file).\n🚀 Di-push ke origin/main.");
+    expect(g.calls[1]).toEqual(["finalize", "Filter ditambah", { commit: true, push: true }]);
+  });
+  it("job gagal / mode baca / 'tanpa commit': tidak ada commit", async () => {
+    const r = fakeRunner();
+    const g = fakeGit();
+    g.open();
+    const { p } = poller(r, "tok", g);
+    queue.push(job());
+    await p.tick();
+    r.finish("rapiuang", { status: "error", error: "x", files: [], result: null });
+    await new Promise((x) => setTimeout(x, 0));
+    queue.push(job({ instruction: "cek saja, tanpa commit" }));
+    await p.tick();
+    r.finish("rapiuang", { status: "done", summary: "ok", files: [], result: { text: "ok" } });
+    await new Promise((x) => setTimeout(x, 0));
+    expect(g.calls).toEqual(["snapshot"]);
+    expect(reports.map((x) => x.status)).toEqual(["error", "done"]);
+  });
+  it("selama commit berjalan, job lain untuk project yang sama dikembalikan ke antrian", async () => {
+    const r = fakeRunner();
+    const g = fakeGit();
+    const { p } = poller(r, "tok", g);
+    queue.push(job());
+    await p.tick();
+    r.finish("rapiuang", { status: "done", summary: "ok", files: [], result: { text: "ok" } });
+    await new Promise((x) => setTimeout(x, 0));
+    queue.push(job({ id: "5f2b8c1e-1a2b-4c3d-8e9f-0a1b2c3d4e5f" }));
+    await p.tick();
+    expect(releases).toEqual(["5f2b8c1e-1a2b-4c3d-8e9f-0a1b2c3d4e5f"]);
+    expect(r.started).toHaveLength(1);
+    g.open();
+    await new Promise((x) => setTimeout(x, 10));
+    expect(reports).toHaveLength(1);
   });
 });

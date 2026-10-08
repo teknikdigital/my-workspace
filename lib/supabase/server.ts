@@ -19,9 +19,17 @@ export function runAsUser<T>(session: { access_token: string; refresh_token: str
   return sessionStore.run({ accessToken: session.access_token, refreshToken: session.refresh_token }, fn);
 }
 
+/**
+ * fetch tanpa cache untuk semua klien Supabase di server.
+ * Next.js 14 otomatis meng-cache fetch GET di route handler yang hanya punya method GET (mis. /api/claude-queue/next),
+ * sehingga query baca Supabase bisa mengembalikan data basi selamanya. Data database selalu harus segar.
+ */
+export const noStoreFetch: typeof fetch = (input, init) => fetch(input, { ...init, cache: "no-store" });
+
 async function sessionClient(ctx: UserSessionCtx) {
   const c = createJsClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: noStoreFetch },
   });
   const { error } = await c.auth.setSession({ access_token: ctx.accessToken, refresh_token: ctx.refreshToken });
   if (error) throw new Error(`Sesi pengguna tidak valid: ${error.message}`);
@@ -41,6 +49,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: noStoreFetch },
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value;
@@ -73,6 +82,7 @@ export function createAdminClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     serviceKey,
     {
+      global: { fetch: noStoreFetch },
       cookies: {
         get() { return undefined; },
         set() {},

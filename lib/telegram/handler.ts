@@ -10,7 +10,6 @@
  */
 
 import { firstTime, runOwnerTurn, withOwner, type ChannelSpec } from "@/lib/chatbot/runner";
-import { splitMarkdown } from "@/lib/chatbot/text";
 import { buildFileBlock } from "@/lib/ai/fileBlocks";
 import { canExtract, fileKind } from "@/lib/files/extractText";
 import { extractTextFromBuffer } from "@/lib/files/extractServer";
@@ -19,8 +18,9 @@ import { readLocalOriginal } from "@/lib/files/localOriginal";
 import type { GeneratedFile } from "@/lib/ai/generatedFile";
 import type { ClaudeTaskDraft } from "@/lib/ai/claudeTask";
 import { cancelJob, createDraftJob, queueJob, setJobMessage } from "@/lib/claudeQueue/jobs";
-import { jobButtons, jobCardText, parseJobCallback } from "@/lib/claudeQueue/format";
+import { QUEUE_TTL_HOURS, jobButtons, jobCardText, parseJobCallback } from "@/lib/claudeQueue/format";
 import { TG_HELP, parseTgCommand, toTelegramHtml, type TgCallback, type TgInbound } from "./core";
+import { replyMarkdown } from "./reply";
 import { MAX_DOWNLOAD_BYTES, answerCallback, downloadFile, editHtml, keepTyping, sendDocument, sendHtml, sendPlain } from "./api";
 
 function log(...a: unknown[]) {
@@ -36,17 +36,7 @@ export const TELEGRAM_CHANNEL: ChannelSpec = {
   secretNote: "⚠️ Chat bot Telegram tidak end-to-end terenkripsi. Lain kali simpan password lewat halaman Vault di web.",
 };
 
-/** Kirim Markdown: dipotong per 3.500 karakter, diformat HTML; bila Telegram menolak HTML, kirim teks biasa. */
-export async function replyMarkdown(chatId: number, md: string) {
-  for (const part of splitMarkdown(md)) {
-    let r = await sendHtml(chatId, toTelegramHtml(part));
-    if (!r.ok && r.status === 400) r = await sendPlain(chatId, part);
-    if (!r.ok) {
-      log("gagal kirim balasan:", r.status, r.error);
-      break;
-    }
-  }
-}
+export { replyMarkdown } from "./reply";
 
 function ownerId() {
   return String(process.env.TELEGRAM_OWNER_ID || "").trim();
@@ -137,7 +127,9 @@ async function sendClaudeCards(chatId: number, tasks: ClaudeTaskDraft[], convers
         );
         continue;
       }
-      const r = await sendHtml(chatId, toTelegramHtml(jobCardText(created.job)), { replyMarkup: jobButtons(created.job.id) });
+      const r = await sendHtml(chatId, toTelegramHtml(jobCardText(created.job, created.note ? `ℹ️ ${created.note}` : undefined)), {
+        replyMarkup: jobButtons(created.job.id),
+      });
       if (r.ok && r.result?.message_id) await setJobMessage(created.job.id, Number(r.result.message_id));
       else log("gagal kirim kartu Claude:", r.status, r.error);
     }
@@ -236,7 +228,7 @@ export async function handleTelegramCallback(cb: TgCallback): Promise<void> {
       const note = r.agentOnline
         ? undefined
         : r.agentLastSeen
-          ? `⚠️ Agent laptop tidak aktif (terakhir ${wib(r.agentLastSeen)}). Dijalankan otomatis saat agent menyala, maks 2 jam.`
+          ? `⚠️ Agent laptop tidak aktif (terakhir ${wib(r.agentLastSeen)}). Dijalankan otomatis saat laptop menyala (maks ${QUEUE_TTL_HOURS} jam), Anda akan diberi kabar.`
           : "⚠️ Agent laptop belum pernah terhubung ke antrian. Pastikan agent v1.5.0 berjalan dan token integrasi tersimpan (lihat docs/TELEGRAM.md).";
       if (cb.chatId && cb.messageId)
         await editHtml(cb.chatId, cb.messageId, toTelegramHtml(jobCardText(r.job, note)), {

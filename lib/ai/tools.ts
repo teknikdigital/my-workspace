@@ -355,6 +355,12 @@ export const AI_TOOL_DEFINITIONS = [
         },
         mode: { type: "string", enum: ["edit", "read"], description: "edit = boleh mengubah file; read = hanya analisis/review" },
         model: { type: "string", enum: ["sonnet", "opus", "haiku"], description: "Default sonnet. opus hanya bila pengguna minta atau tugas sangat kompleks." },
+        continue_previous: {
+          type: "boolean",
+          description:
+            "true bila pengguna ingin MELANJUTKAN pekerjaan Claude Code sebelumnya di project yang sama (mis. 'lanjutkan', 'teruskan', 'perbaiki juga ...', 'yang tadi belum beres'). " +
+            "Claude meneruskan sesi terakhir project itu sehingga ingat konteksnya; instruksi cukup berisi tambahan/koreksi.",
+        },
       },
       required: ["project", "instruction"],
     },
@@ -556,7 +562,14 @@ export async function executeAiTool(toolName: string, args: any, ctx?: AiToolCon
         return await updateProjectDetails(args);
       }
       case "read_project_document": {
-        return await readProjectDocument({ project: args.project, query: args.query, document: args.document });
+        const r: any = await readProjectDocument({ project: args.project, query: args.query, document: args.document });
+        if (r?.success === false) {
+          // Tidak adanya dokumen (mis. HANDOFF) BUKAN alasan berhenti: Claude Code membaca kode project langsung.
+          r.next_step =
+            "Bila pengguna meminta pekerjaan/pemeriksaan/pengujian pada aplikasi atau kode project ini, LANJUTKAN dengan send_to_claude_code " +
+            "tanpa dokumen ini (Claude Code membaca kode project langsung di laptop). Jangan menjawab 'tidak dapat memeriksa'.";
+        }
+        return r;
       }
       case "log_activity": {
         return await logActivity(args);

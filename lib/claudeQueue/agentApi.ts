@@ -11,18 +11,26 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { sanitizeLastRun, sanitizeTasks } from "@/lib/ai/conversationStore";
 import { QUEUE_TTL_MS, RUNNING_TTL_MS, normalizeResult, type JobView } from "./format";
 
-const COLS = "id, project, instruction, mode, model, status, chat_id, message_id, conversation_id, task_id, result_summary, result_files, error, cost_usd, finished_at";
+const COLS = "id, project, instruction, mode, model, status, chat_id, message_id, conversation_id, task_id, result_summary, result_files, error, cost_usd, queued_at, finished_at";
+/** + kolom fitur "lanjutkan" (migration 20261008000002). Bila belum ada, dipakai COLS saja. */
+const COLS_RESUME = `${COLS}, resume_session_id`;
+const missingResumeCols = (e: { message?: string } | null | undefined) => !!e && /session_id/i.test(e.message || "");
 
 export async function authAgent(authHeader: string | null): Promise<{ userId: string } | null> {
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7).trim();
   if (!token) return null;
   const hash = crypto.createHash("sha256").update(token).digest("hex");
-  const { data } = await createAdminClient().from("integration_tokens").select("user_id").eq("token_hash", hash).maybeSingle();
+  const { data, error } = await createAdminClient().from("integration_tokens").select("user_id").eq("token_hash", hash).maybeSingle();
+  // Database tidak terjangkau (mis. laptop baru bangun, jaringan belum siap) BUKAN token salah:
+  // lempar error agar route membalas 503 (agent mencoba lagi 1 menit), bukan 401 (agent menunggu 5 menit + pesan menyesatkan).
+  if (error) throw new Error(`cek token gagal: ${error.message}`);
   return data?.user_id ? { userId: data.user_id } : null;
 }
 
 export type AgentJob = JobView & {
+  resume_session_id?: string | null;
+  queued_at?: string | null;
   chat_id: number | null;
   message_id: number | null;
   conversation_id: string | null;
@@ -56,29 +64,44 @@ export async function heartbeat(userId: string, version: string | null) {
     .upsert({ user_id: userId, last_seen_at: new Date().toISOString(), version: version ? version.slice(0, 20) : null });
 }
 
-/** Ambil job antri tertua dan tandai running. Atomik: hanya satu agent yang berhasil mengubah status queued. */
-export async function claimNext(userId: string): Promise<AgentJob | null> {
+/**
+ * Ambil job antri tertua dan tandai running. Atomik: hanya satu agent yang berhasil mengubah status queued.
+ * Mengembalikan alasan bila ada job antri tetapi gagal diambil (untuk log agent).
+ */
+export async function claimNext(userId: string): Promise<{ job: AgentJob | null; pending: number; reason?: string }> {
   const db = createAdminClient();
+  let reason: string | undefined;
+  let pending = 0;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const { data: next } = await db
+    const { data: next, error: selErr } = await db
       .from("claude_jobs")
       .select("id")
       .eq("user_id", userId)
       .eq("status", "queued")
       .order("queued_at", { ascending: true })
       .limit(1);
-    if (!next?.length) return null;
-    const { data } = await db
-      .from("claude_jobs")
-      .update({ status: "running", started_at: new Date().toISOString() })
-      .eq("id", next[0].id)
-      .eq("user_id", userId)
-      .eq("status", "queued")
-      .select(COLS)
-      .maybeSingle();
-    if (data) return data as AgentJob;
+    if (selErr) return { job: null, pending, reason: `baca antrian gagal: ${selErr.message}` };
+    pending = next?.length || 0;
+    if (!pending) return { job: null, pending: 0 };
+    const claim = (cols: string) =>
+      db
+        .from("claude_jobs")
+        .update({ status: "running", started_at: new Date().toISOString() })
+        .eq("id", next![0].id)
+        .eq("user_id", userId)
+        .eq("status", "queued")
+        .select(cols)
+        .maybeSingle();
+    let { data, error: upErr } = await claim(COLS_RESUME);
+    if (missingResumeCols(upErr)) {
+      // migration "lanjutkan" belum dijalankan: RETURNING gagal sehingga update dibatalkan; ulangi tanpa kolom baru
+      ({ data, error: upErr } = await claim(COLS));
+    }
+    if (data) return { job: data as unknown as AgentJob, pending };
+    reason = upErr ? `ambil job gagal: ${upErr.message}` : "job diambil proses lain";
   }
-  return null;
+  console.error("[claude-queue] job antri tidak terambil:", reason);
+  return { job: null, pending, reason };
 }
 
 export async function releaseJob(userId: string, jobId: string): Promise<boolean> {
@@ -93,28 +116,25 @@ export async function releaseJob(userId: string, jobId: string): Promise<boolean
   return !!data;
 }
 
-export async function finishJob(userId: string, jobId: string, body: unknown): Promise<AgentJob | null> {
+export async function finishJob(userId: string, jobId: string, body: unknown): Promise<(AgentJob & { answer: string | null }) | null> {
   const r = normalizeResult(body);
   const db = createAdminClient();
-  const { data } = await db
-    .from("claude_jobs")
-    .update({
-      status: r.status,
-      result_summary: r.summary,
-      result_files: r.files,
-      error: r.error,
-      cost_usd: r.costUsd,
-      finished_at: new Date().toISOString(),
-    })
-    .eq("id", jobId)
-    .eq("user_id", userId)
-    .eq("status", "running")
-    .select(COLS)
-    .maybeSingle();
+  const base = {
+    status: r.status,
+    result_summary: r.summary,
+    result_files: r.files,
+    error: r.error,
+    cost_usd: r.costUsd,
+    finished_at: new Date().toISOString(),
+  };
+  const save = (payload: Record<string, unknown>) =>
+    db.from("claude_jobs").update(payload).eq("id", jobId).eq("user_id", userId).eq("status", "running").select(COLS).maybeSingle();
+  let { data, error } = await save(r.sessionId ? { ...base, session_id: r.sessionId } : base);
+  if (missingResumeCols(error)) ({ data, error } = await save(base));
   if (!data) return null;
   const job = data as AgentJob;
   await updateWebCard(userId, job).catch(() => {});
-  return job;
+  return { ...job, answer: r.answer };
 }
 
 /** Tampilkan hasil di kartu Claude Code pada riwayat chat web (ai_messages.claude_tasks[].lastRun). */

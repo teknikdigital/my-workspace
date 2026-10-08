@@ -19,6 +19,8 @@
  * v1.5.0: Antrian dari Telegram (queue.cjs). Agent memeriksa My Workspace tiap 10 detik dan
  * menjalankan instruksi yang sudah ditekan "▶️ Jalankan" di Telegram. Token integrasi sama dengan
  * log-activity.mjs (%USERPROFILE%\.myworkspace-token atau env MW_TOKEN). Alamat: apps.json queue.url / env MW_URL.
+ * v1.6.0: Commit & push otomatis hasil job antrian (gitflow.cjs), aktif per app lewat
+ * "claude": { "git": { "autoCommit": true } }. Claude sendiri tetap tidak boleh commit/push.
  */
 "use strict";
 
@@ -32,7 +34,7 @@ const claudeCode = require("./claude.cjs");
 const { createQueuePoller } = require("./queue.cjs");
 const os = require("os");
 
-const VERSION = "1.5.1";
+const VERSION = "1.6.0";
 const ROOT = __dirname;
 const IS_WIN = process.platform === "win32";
 const CONFIG_PATH = process.env.AGENT_CONFIG || path.join(ROOT, "apps.json");

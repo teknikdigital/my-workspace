@@ -70,6 +70,12 @@ const EDIT_SHELL = [
   "npx vitest *",
   "node --check *",
   "npx vite build *",
+  // Project di subfolder (mis. main-app/rally-district-app): verifikasi tanpa "cd ... &&" (perintah gabungan diblokir)
+  "npm --prefix * run lint *",
+  "npm --prefix * run test *",
+  "npm --prefix * test *",
+  "npm --prefix * run build *",
+  "npm --prefix * run typecheck *",
   // Menjalankan script uji buatan Claude sendiri (mis. generate PDF contoh). Setara risikonya dengan
   // npm run test: kode di folder project dieksekusi. Hanya di mode edit; project Bio Farma terkunci baca saja.
   "node *",
@@ -78,6 +84,11 @@ const EDIT_SHELL = [
 ];
 const DENY_SHELL = [
   "git push *",
+  "git commit *",
+  "git add *",
+  "git stash *",
+  "git rebase *",
+  "git merge *",
   "git reset *",
   "git clean *",
   "git checkout *",
@@ -139,10 +150,11 @@ function runRules(mode) {
     "Kamu dijalankan otomatis oleh My Workspace atas perintah pemilik project (Stratt). Tidak ada orang yang bisa menjawab pertanyaan selama proses ini.",
     "Kerjakan instruksi sampai tuntas tanpa bertanya. Bila ada keputusan yang ambigu dan sulit dibalik, JANGAN dieksekusi: jelaskan pilihannya di jawaban akhir.",
     "Bila ada HANDOFF.md di root project, baca dulu untuk memahami kondisi terkini.",
-    "Jangan menjalankan dev server (npm run dev / npm start), npm install, git push/reset/checkout, atau perintah yang menghapus data. Jangan membaca file .env.",
+    "Jangan menjalankan dev server (npm run dev / npm start), npm install, git commit/push/reset/checkout (commit & push dilakukan agent setelah verifikasi), atau perintah yang menghapus data. Jangan membaca file .env.",
   ];
   const edit = [
     "Setelah mengubah kode, verifikasi dengan perintah yang tersedia (npm run lint / npm run test / npm run build / npx tsc) bila relevan untuk project ini.",
+    "Perintah gabungan (cd ... && ..., ;, |) selalu ditolak. Bila aplikasi ada di subfolder, jalankan dari folder ini dengan: npx tsc --noEmit -p <subfolder> dan npm --prefix <subfolder> run lint|test|build.",
     "Setelah selesai, perbarui HANDOFF.md di root project (buat bila belum ada) dengan bagian: Ringkasan, Lokasi & Stack, Cara Menjalankan, Status Fitur, Keputusan Teknis, Masalah Diketahui, Langkah Berikutnya, Riwayat Perubahan (tambah 1 baris paling atas: tanggal hari ini + ringkasan + file utama, maksimal 30 baris). Jangan pernah menulis nilai password/API key/token/isi .env, cukup nama variabelnya.",
   ];
   const read = ["MODE BACA SAJA: jangan mengubah, membuat, atau menghapus file apa pun. Cukup analisis dan beri rekomendasi."];

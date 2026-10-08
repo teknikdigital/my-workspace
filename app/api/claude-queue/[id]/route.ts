@@ -12,7 +12,13 @@ export const dynamic = "force-dynamic";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await authAgent(req.headers.get("authorization"));
+  let auth: { userId: string } | null;
+  try {
+    auth = await authAgent(req.headers.get("authorization"));
+  } catch (e) {
+    console.error("[claude-queue]", (e as Error).message);
+    return NextResponse.json({ error: "Database My Workspace belum bisa dihubungi, dicoba lagi otomatis" }, { status: 503 });
+  }
   if (!auth) return NextResponse.json({ error: "Token tidak valid" }, { status: 401 });
   if (!UUID.test(params.id)) return NextResponse.json({ error: "ID job tidak valid" }, { status: 400 });
   let body: any;

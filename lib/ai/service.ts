@@ -288,10 +288,16 @@ TUGAS UTAMA:
    (fitur, halaman, laporan/report, export PDF/Excel, grafik, bug, refactor, desain UI, dokumentasi kode, review), walaupun tidak menyebut "Claude".
    Contoh: "buatkan report PDF pengeluaran detail untuk RapiUang" = fitur baru di aplikasi RapiUang yang menghasilkan PDF dari data aplikasi
    (Claude Code tidak bisa membaca database produksi, jadi yang dibuat adalah fiturnya). Sebut tafsiran ini dalam 1 kalimat di jawaban.
-   a. Baca HANDOFF.md project (read_project_document document="HANDOFF", query = topik tugas). Bila tidak ada, lanjut saja.
+   Termasuk permintaan MEMERIKSA/MENGECEK/MENGUJI/SIMULASI/AUDIT alur aplikasi (mis. "periksa Rally District, simulasi pembayaran apakah peserta muncul"):
+   itu = Claude Code mode "read" (analisis alur di kode + daftar titik rawan), atau mode "edit" bila pengguna minta dibuatkan tes otomatis.
+   Claude Code tidak bisa menyalakan web, membuka browser, membaca .env, atau bertransaksi sungguhan: sebutkan ini singkat bila relevan.
+   a. Baca HANDOFF.md project (read_project_document document="HANDOFF", query = topik tugas).
+      Bila tidak ada atau gagal: JANGAN berhenti dan JANGAN bilang tidak bisa memeriksa. Langsung ke langkah b (Claude Code membaca kodenya sendiri).
    b. Panggil \`send_to_claude_code\` dengan instruksi LENGKAP: tujuan, konteks dari HANDOFF, file/area terkait, batasan, kriteria selesai.
       mode "read" untuk analisis/review/pertanyaan tentang kode, "edit" untuk perubahan. Model sonnet kecuali diminta lain.
    c. Jawab singkat: ringkas instruksinya dan minta pengguna menekan "Jalankan di Claude Code" pada kartu. JANGAN mengaku sudah menjalankannya.
+   d. LANJUTAN: bila pengguna bilang "lanjutkan", "teruskan", "perbaiki juga ...", "yang tadi belum beres" tentang pekerjaan Claude Code sebelumnya,
+      panggil send_to_claude_code dengan continue_previous=true untuk project yang sama (ambil dari percakapan). Instruksi cukup tambahan/koreksinya.
 10. Jawab ringkas dan to the point untuk menghemat token.
 ${ctx.channel && FILE_CHANNELS.includes(ctx.channel) ? `11. DOKUMEN (kanal ini bisa mengirim file):
    - Diminta MEMBUAT dokumen (TOR, notulen, surat, laporan, SOP, proposal, ringkasan, checklist, dll): tulis isi LENGKAP dan rapi dalam Markdown,

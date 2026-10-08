@@ -8,12 +8,12 @@ vi.mock("@/lib/claudeQueue/agentApi", () => ({
   authAgent: async (h: string | null) => (h === "Bearer ok" ? { userId: "u1" } : null),
   heartbeat: async (_u: string, v: string | null) => void log.push(`hb ${v}`),
   sweep: async () => swept,
-  claimNext: async () => claimable,
+  claimNext: async () => (claimable ? { job: claimable, pending: 1 } : { job: null, pending: 0 }),
   releaseJob: async (_u: string, id: string) => (log.push(`release ${id}`), true),
   finishJob: async (_u: string, id: string, body: any) => (body.status === "done" ? { id, status: "done" } : null),
 }));
 vi.mock("@/lib/claudeQueue/notify", () => ({
-  updateCard: async (j: any) => void log.push(`card ${j.id}`),
+  notifyStarted: async (j: any) => void log.push(`card ${j.id}`),
   notifyFinished: async (j: any) => void log.push(`finished ${j.id}`),
 }));
 
@@ -43,7 +43,7 @@ describe("/api/claude-queue", () => {
     swept = [{ id: "old" }];
     claimable = { id: ID, project: "RapiUang", instruction: "x", mode: "edit", model: "sonnet", chat_id: 1, message_id: 2 };
     const j = await (await GET(get("Bearer ok"))).json();
-    expect(j.job).toEqual({ id: ID, project: "RapiUang", instruction: "x", mode: "edit", model: "sonnet" });
+    expect(j.job).toEqual({ id: ID, project: "RapiUang", instruction: "x", mode: "edit", model: "sonnet", resume: null });
     expect(log).toEqual(["hb 1.5.0", "finished old", `card ${ID}`]);
     claimable = null;
     expect(await (await GET(get("Bearer ok"))).json()).toEqual({ job: null });
@@ -55,5 +55,21 @@ describe("/api/claude-queue", () => {
     expect((await post("bukan-id", { action: "result" })).status).toBe(400);
     expect((await post(ID, { action: "aneh" })).status).toBe(400);
     expect(log).toEqual([`release ${ID}`, `finished ${ID}`]);
+  });
+});
+
+describe("database tidak terjangkau", () => {
+  it("503 (bukan 401) agar agent tidak mengira token salah", async () => {
+    const mod: any = await import("@/lib/claudeQueue/agentApi");
+    const orig = mod.authAgent;
+    mod.authAgent = async () => {
+      throw new Error("fetch failed");
+    };
+    try {
+      expect((await GET(get("Bearer ok"))).status).toBe(503);
+      expect((await post(ID, { action: "release" })).status).toBe(503);
+    } finally {
+      mod.authAgent = orig;
+    }
   });
 });

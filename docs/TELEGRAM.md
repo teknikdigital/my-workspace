@@ -77,7 +77,7 @@ Kirim pesan apa saja ke bot, salin angka ID yang dibalas, isi `TELEGRAM_OWNER_ID
 
 ## 7. Claude Code dari Telegram (antrian)
 Contoh: "suruh claude tambah filter kategori di RapiUang". Bot mengirim **kartu** dengan tombol **▶️ Jalankan** / **✖️ Batal**.
-Setelah ditekan, instruksi masuk antrian; **agent di laptop** (v1.5.0) memeriksa antrian tiap 10 detik, menjalankan Claude Code,
+Setelah ditekan, instruksi masuk antrian; **agent di laptop** (v1.5.0+) memeriksa antrian tiap 10 detik, menjalankan Claude Code,
 lalu bot mengirim hasilnya (ringkasan, file yang berubah, biaya). Kartu di halaman AI web ikut diperbarui.
 
 Persiapan (sekali):
@@ -91,8 +91,31 @@ Persiapan (sekali):
    Nonaktifkan: `"queue": { "enabled": false }`. Status: `GET http://127.0.0.1:4545/queue` (dengan token agent).
 
 Aturan tetap berlaku: project `claude.mode = "read"` (Bio Farma) tidak bisa diedit, perintah terlarang tetap diblokir,
-instruksi berisi rahasia ditolak. Instruksi yang tidak diambil agent dalam 2 jam otomatis kedaluwarsa (tidak dijalankan
-diam-diam belakangan). Job berjalan > 75 menit tanpa laporan dianggap gagal.
+instruksi berisi rahasia ditolak. Instruksi yang tidak diambil agent dalam 24 jam otomatis kedaluwarsa
+(tidak dijalankan diam-diam belakangan; ubah lewat env `CLAUDE_QUEUE_TTL_HOURS`, 1 s.d. 72). Perintah yang dikirim saat laptop mati
+tetap antri; begitu laptop menyala dan agent mengambilnya, bot mengirim pesan "▶️ Laptop online ..." (HP berbunyi). Job berjalan > 75 menit tanpa laporan dianggap gagal.
+
+### 7a. Commit & push otomatis (agent v1.6.0)
+Aktif per project di `agent/apps.json`:
+```json
+"claude": { "mode": "edit", "project": "Rally District",
+  "git": { "autoCommit": true, "push": true, "repo": "main-app/rally-district-app", "verify": ["npx tsc --noEmit"] } }
+```
+- `repo`: folder repo git relatif ke folder app (default folder app). `push: false` = commit saja.
+- `verify`: perintah yang wajib lulus sebelum commit. Kosongkan = otomatis (`npx tsc --noEmit` bila ada tsconfig, `npm test` bila ada).
+- Claude sendiri tetap TIDAK bisa commit/push; agent yang melakukannya setelah Claude selesai.
+
+Pengaman:
+1. Hanya file yang diubah Claude yang di-commit. Perubahan Anda yang belum di-commit (dan yang sudah di-stage) tidak ikut.
+2. Claude mengubah file yang sebelumnya sudah Anda ubah: tidak di-commit, dicek manual.
+3. File rahasia (`.env*` kecuali `.env.example`, `*.env`, kunci, token) atau pola rahasia di baris baru: tidak di-commit.
+4. Verifikasi gagal: tidak di-commit, potongan error dikirim ke Telegram.
+5. Push tanpa `--force` ke branch yang sedang aktif. Ditolak remote: commit tetap di laptop.
+6. Branch berganti selama proses atau detached HEAD: tidak di-commit.
+
+Per perintah: tulis "jangan push" (commit saja) atau "tanpa commit" (tidak di-commit sama sekali).
+Pesan hasil di Telegram menyebut hash commit dan cara membatalkan (`git revert <hash>` lalu `git push`).
+Push ke `main` pada repo yang terhubung Vercel = deploy production. Kerjakan perubahan besar di branch lain (checkout branch itu di laptop).
 
 ## Perintah
 - `/baru` : mulai percakapan baru (otomatis juga setelah 12 jam tanpa pesan)

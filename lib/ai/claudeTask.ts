@@ -13,6 +13,8 @@ export interface ClaudeTaskDraft {
   instruction: string;
   mode: ClaudeTaskMode;
   model: ClaudeTaskModel;
+  /** Teruskan sesi Claude Code terakhir project ini (perintah "lanjutkan"). Hanya untuk antrian Telegram. */
+  continueSession?: boolean;
   /** Status run terakhir dari kartu ini (disimpan di riwayat chat). */
   lastRun?: {
     status: "done" | "error" | "stopped" | "timeout";
@@ -36,7 +38,9 @@ export function makeClaudeTask(args: any, seq: number): { draft?: ClaudeTaskDraf
     return { error: "Instruksi tidak boleh berisi rahasia/placeholder. Hapus bagian itu; Claude Code membaca kredensial dari .env project sendiri." };
   const mode: ClaudeTaskMode = args?.mode === "read" ? "read" : "edit";
   const model: ClaudeTaskModel = ["sonnet", "opus", "haiku"].includes(args?.model) ? args.model : "sonnet";
-  return { draft: { id: `ct${Date.now().toString(36)}${seq}`, project, instruction, mode, model } };
+  const draft: ClaudeTaskDraft = { id: `ct${Date.now().toString(36)}${seq}`, project, instruction, mode, model };
+  if (args?.continue_previous === true || args?.continue_previous === "true") draft.continueSession = true;
+  return { draft };
 }
 
 /** Cocokkan nama project draf ke aplikasi di agent (nama project di apps.json claude.project, nama app, atau id). */

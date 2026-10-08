@@ -33,3 +33,11 @@ describe("matchAgentApp", () => {
     expect(matchAgentApp("", apps)).toBeNull();
   });
 });
+
+describe("lanjutkan (continue_previous)", () => {
+  it("flag hanya ada bila diminta", async () => {
+    const { makeClaudeTask } = await import("@/lib/ai/claudeTask");
+    expect(makeClaudeTask({ project: "Rally District", instruction: "perbaiki logging payload webhook DOKU", continue_previous: true }, 0).draft!.continueSession).toBe(true);
+    expect(makeClaudeTask({ project: "Rally District", instruction: "perbaiki logging payload webhook DOKU" }, 0).draft!.continueSession).toBeUndefined();
+  });
+});

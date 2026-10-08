@@ -11,6 +11,11 @@ vi.mock("@/lib/actions/generatedDocs", () => ({
       : { success: false, error: "tidak ditemukan" }
   ),
 }));
+vi.mock("@/lib/actions/documentMemory", () => ({
+  saveDocumentFacts: vi.fn(),
+  saveDocumentText: vi.fn(),
+  readProjectDocument: vi.fn(async () => ({ success: false, error: "Belum ada dokumen lengkap tersimpan untuk project ini" })),
+}));
 vi.mock("@/lib/actions/vault", () => ({ createCredential: vi.fn(async () => ({ data: {} })), getCredentialsMetadata: vi.fn(async () => []) }));
 vi.mock("@/lib/ai/context", () => ({ buildUserWorkspaceSummary: async () => "KONTEKS" }));
 vi.mock("@/lib/actions/search", () => ({ searchWorkspace: vi.fn() }));
@@ -95,5 +100,13 @@ describe("sendAiQuery kanal Telegram", () => {
     expect(body.tools.map((t: any) => t.function.name)).not.toContain("create_document_file");
     expect(body.messages[0].content).not.toMatch(/11\. DOKUMEN/);
     expect(r.files).toBeUndefined();
+  });
+});
+
+describe("HANDOFF tidak ada bukan alasan berhenti", () => {
+  it("read_project_document gagal -> hasil tool berisi next_step lanjut ke send_to_claude_code", async () => {
+    const r: any = await executeAiTool("read_project_document", { project: "Rally District", document: "HANDOFF" }, { secrets: [], used: new Set(), channel: "telegram" });
+    expect(r.success).toBe(false);
+    expect(r.next_step).toMatch(/send_to_claude_code/);
   });
 });

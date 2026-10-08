@@ -43,12 +43,14 @@ describe("telegram api", () => {
   });
   it("keepTyping mengirim ulang sampai dihentikan", async () => {
     const before = hits.length;
+    const typing = () => hits.slice(before).filter((h) => h.url.endsWith("/sendChatAction")).length;
     const stop = keepTyping(9, 10);
     await new Promise((r) => setTimeout(r, 150));
     stop();
-    const n = hits.slice(before).filter((h) => h.url.endsWith("/sendChatAction")).length;
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 60)); // request terakhir yang masih di jalan boleh mendarat
+    const n = typing();
     expect(n).toBeGreaterThanOrEqual(2); // kirim awal + minimal satu ulangan
-    expect(hits.slice(before).filter((h) => h.url.endsWith("/sendChatAction")).length).toBe(n);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(typing()).toBe(n); // setelah dihentikan tidak ada kiriman baru
   });
 });
