@@ -89,6 +89,18 @@ function createQueuePoller(deps) {
     lastJob = { id: job.id, project: job.project, at: Date.now() };
     const app = matchApp(job.project, deps.apps());
     if (!app) return report(s, job.id, { status: "error", error: `Project "${job.project}" tidak terdaftar di agent (apps.json).` });
+
+    // Job file ops: tanpa Claude Code — langsung via fileops.cjs (cepat, tanpa biaya token)
+    if (job.mode === "file") {
+      if (!app.fileOps || !app.fileOps.enabled) {
+        return report(s, job.id, { status: "error", error: `Project "${job.project}" belum mengaktifkan fileOps di apps.json.` });
+      }
+      const fileops = require("./fileops.cjs");
+      const r = await fileops.runFileOp(deps, s, app, job);
+      deps.log(`[antrian] fileops job ${job.id.slice(0, 8)} (${r.fileOp ? `${r.fileOp.op} ${r.fileOp.path}` : "-"}): ${r.status}`);
+      return report(s, job.id, r);
+    }
+
     const runner = deps.runner;
     if (runner.isRunning(app.id) || finalizing.has(app.id)) {
       // project sedang dikerjakan instruksi lain (atau masih commit/verifikasi): kembalikan, coba lagi nanti

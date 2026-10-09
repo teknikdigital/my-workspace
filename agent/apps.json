@@ -209,6 +209,18 @@
         "mode": "read",
         "project": "Bio Farma Digitalisasi"
       }
+    },
+    {
+      "id": "laptop-files",
+      "name": "File Laptop",
+      "group": "Sistem",
+      "description": "Operasi file langsung di laptop via job mode=file (tanpa Claude Code). project: \"File Laptop\".",
+      "fileOps": {
+        "enabled": true,
+        "roots": [
+          "D:\\Dokumen"
+        ]
+      }
     }
   ]
 }
