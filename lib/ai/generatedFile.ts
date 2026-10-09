@@ -12,6 +12,8 @@ export interface GeneratedFile {
   source: "created" | "stored";
   /** Lokasi file asli di laptop (dokumen unggahan). Bila bisa dibaca, file asli yang dikirim. */
   originalPath?: string | null;
+  /** Tidak ada versi teks (file dari menu Documents saja): bila file asli gagal, jangan kirim .docx kosong. */
+  originalOnly?: boolean;
 }
 
 export const MAX_DOCUMENT_CHARS = 60_000;

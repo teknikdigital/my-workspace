@@ -15,6 +15,7 @@ import { canExtract, fileKind } from "@/lib/files/extractText";
 import { extractTextFromBuffer } from "@/lib/files/extractServer";
 import { markdownToDocx, safeFileBase } from "@/lib/documents/markdownToDocx";
 import { readLocalOriginal } from "@/lib/files/localOriginal";
+import { canStore, readStorageOriginal, saveOriginalToStorage, storagePathOf } from "@/lib/files/storageOriginal";
 import type { GeneratedFile } from "@/lib/ai/generatedFile";
 import type { ClaudeTaskDraft } from "@/lib/ai/claudeTask";
 import { cancelJob, createDraftJob, queueJob, setJobMessage } from "@/lib/claudeQueue/jobs";
@@ -50,25 +51,48 @@ function wib(iso: string | null) {
 
 /* ------------------------------ file masuk ------------------------------ */
 
-/** File dari pengguna -> isi pesan untuk AI (blok [ISI FILE]) atau pesan penolakan. */
-export async function fileToMessage(msg: TgInbound): Promise<{ content?: string; reject?: string }> {
+/**
+ * File dari pengguna -> isi pesan untuk AI (blok [ISI FILE]), balasan langsung, atau penolakan.
+ * File ASLI selalu disimpan ke menu Documents (Supabase Storage) agar bisa dikirim balik walau laptop mati.
+ */
+export async function fileToMessage(msg: TgInbound): Promise<{ content?: string; reject?: string; reply?: string }> {
   const doc = msg.document!;
-  if (!canExtract(doc.fileName)) {
-    return {
-      reject:
-        fileKind(doc.fileName) === "image"
-          ? "Gambar belum bisa dibaca (perlu OCR). Kirim sebagai PDF berteks atau Word."
-          : "Jenis file belum didukung. Yang bisa dibaca: PDF berteks, Word .docx, Excel, TXT/CSV/MD.",
-    };
-  }
-  if (doc.fileSize > MAX_DOWNLOAD_BYTES) return { reject: "File lebih dari 20 MB (batas Telegram Bot). Kirim lewat halaman AI di web." };
+  const readable = canExtract(doc.fileName);
+  const storable = canStore(doc.fileName);
+  if (!readable && !storable) return { reject: "Jenis file belum didukung. Yang bisa disimpan/dibaca: PDF, Word, Excel, PowerPoint, gambar, TXT/CSV/MD, ZIP." };
+  if (doc.fileSize > MAX_DOWNLOAD_BYTES) return { reject: "File lebih dari 20 MB (batas Telegram Bot). Unggah lewat My Workspace > Personal > Documents." };
   const dl = await downloadFile(doc.fileId);
   if (!dl.ok) return { reject: `Gagal mengambil file: ${dl.error}` };
+
+  let ref: string | null = null;
+  let storeError: string | null = null;
+  if (storable) {
+    const st = await withOwner(() => saveOriginalToStorage({ data: dl.data, fileName: doc.fileName })).catch((e) => ({ ok: false as const, error: (e as Error).message }));
+    if (st.ok) ref = st.ref;
+    else {
+      storeError = st.error;
+      log("gagal simpan file asli:", st.error);
+    }
+  }
+  const savedLine = ref ? `✅ File asli **${doc.fileName}** disimpan di My Workspace > Personal > Documents. Minta kapan saja: "kirim ${doc.fileName.replace(/\.[^.]+$/, "")}".` : "";
+
+  if (!readable) {
+    if (ref) return { reply: `${savedLine}\n\n${fileKind(doc.fileName) === "image" ? "Isi gambar belum bisa dibaca (perlu OCR)." : "Isi file jenis ini belum bisa dibaca, tapi file aslinya aman tersimpan."}` };
+    return { reject: `Gagal menyimpan file: ${storeError || "jenis tidak didukung"}` };
+  }
   const ex = await extractTextFromBuffer(dl.data, doc.fileName);
-  if (!ex.ok) return { reject: `${doc.fileName}: ${ex.reason}` };
-  const block = buildFileBlock({ name: doc.fileName, project: "", path: "Telegram" }, ex.text);
+  if (!ex.ok) {
+    if (ref) return { reply: `${savedLine}\n\nIsinya tidak bisa dibaca: ${ex.reason}` };
+    return { reject: `${doc.fileName}: ${ex.reason}` };
+  }
+  const block = buildFileBlock({ name: doc.fileName, project: "", path: ref || "Telegram" }, ex.text);
   const ask = msg.caption?.trim() || "Baca dokumen ini dan simpan fakta pentingnya. Bila project-nya jelas dari isi dokumen, kaitkan ke project itu.";
-  return { content: `${block}\n\n${ask}` };
+  const note = ref
+    ? "\n\n(Catatan sistem: file ASLI sudah tersimpan otomatis di menu Documents. Jangan membuat dokumen baru dari file ini kecuali diminta.)"
+    : storeError
+      ? `\n\n(Catatan sistem: file asli GAGAL disimpan (${storeError}); hanya teksnya yang tersimpan. Sampaikan ini ke pengguna.)`
+      : "";
+  return { content: `${block}\n\n${ask}${note}` };
 }
 
 /* ------------------------------ file keluar ------------------------------ */
@@ -86,15 +110,21 @@ async function sendFiles(chatId: number, files: GeneratedFile[]) {
   try {
     for (const f of files) {
       try {
-        // dokumen unggahan: kirim FILE ASLI bila masih ada di folder _Masuk laptop
+        // dokumen unggahan: kirim FILE ASLI (menu Documents di Storage, atau folder _Masuk laptop)
         if (f.originalPath) {
-          const orig = await readLocalOriginal(f.originalPath);
+          const fromStorage = !!storagePathOf(f.originalPath);
+          const orig = fromStorage ? await withOwner(() => readStorageOriginal(f.originalPath!)) : await readLocalOriginal(f.originalPath);
           if (orig.ok) {
             const r = await sendDocument(chatId, orig.data, orig.name, `${f.title} (file asli)`);
             if (r.ok) continue;
             log("gagal kirim file asli:", r.status, r.error);
-          } else {
+          } else if (!f.originalOnly) {
             await replyMarkdown(chatId, `ℹ️ ${orig.reason}. Dikirim versi teksnya.`);
+          }
+          if (f.originalOnly) {
+            const why = orig.ok ? "gagal dikirim Telegram" : orig.reason;
+            await replyMarkdown(chatId, `File asli "${f.title}" tidak bisa dikirim (${why}). Buka My Workspace > Personal > Documents.`);
+            continue;
           }
         }
         const { data, name } = await fileBuffer(f);
@@ -165,6 +195,7 @@ export async function handleTelegram(msg: TgInbound): Promise<void> {
     const stop = keepTyping(msg.chatId);
     const f = await fileToMessage(msg).finally(stop);
     if (f.reject) return replyMarkdown(msg.chatId, f.reject);
+    if (f.reply) return replyMarkdown(msg.chatId, f.reply);
     content = f.content!;
   }
   if (!content) {

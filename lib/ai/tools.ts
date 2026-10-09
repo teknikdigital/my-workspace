@@ -417,7 +417,8 @@ export const FILE_TOOL_DEFINITIONS = [
     description:
       "Kirim dokumen yang SUDAH TERSIMPAN di My Workspace sebagai file: dokumen yang pernah diunggah (mis. NIB, kontrak, PDF), " +
       "dokumen buatan AI, atau catatan (mis. 'kirim NIB Rally District', 'kirim TOR isolator kemarin', 'minta HANDOFF RapiUang'). " +
-      "Pencarian per kata pada judul/nama file dan nama project. Untuk dokumen unggahan, FILE ASLI (mis. PDF) dikirim bila masih ada di laptop; bila tidak, versi teksnya.",
+      "Pencarian per kata pada judul/nama file dan nama project, termasuk file di menu Documents. Untuk dokumen unggahan, FILE ASLI (mis. PDF) yang dikirim; versi teks hanya bila file asli tidak ada. " +
+      "Gunakan ini (BUKAN create_document_file) bila pengguna minta 'kirim/kirimkan dokumen X'.",
     parameters: {
       type: "object",
       properties: {
@@ -636,12 +637,17 @@ export async function executeAiTool(toolName: string, args: any, ctx?: AiToolCon
           markdown: doc.content.slice(0, 60_000),
           source: "stored",
           originalPath: doc.originalPath,
+          originalOnly: (doc as any).originalOnly || undefined,
         });
         return {
           success: true,
           file: doc.title,
           project: doc.project,
-          original_file: doc.originalPath ? "akan dikirim bila masih ada di laptop" : "tidak ada (dikirim versi teks)",
+          original_file: !doc.originalPath
+            ? "tidak ada (dikirim versi teks)"
+            : doc.originalPath.startsWith("storage:")
+              ? "file asli dikirim dari menu Documents"
+              : "file asli dikirim bila laptop menyala (folder _Masuk)",
           other_matches: doc.others.length ? doc.others : undefined,
           note: "File akan dikirim otomatis. Sebut judulnya; bila other_matches ada, tawarkan dokumen lain itu.",
         };

@@ -27,6 +27,28 @@ vi.mock("@/lib/telegram/api", () => {
   };
 });
 
+/* ---------- tiruan Storage (menu Documents) ---------- */
+const stored: { name: string; size: number }[] = [];
+let storeFail: string | null = null;
+const storageFiles = new Map<string, Buffer>();
+vi.mock("@/lib/files/storageOriginal", async (orig) => {
+  const real: any = await orig();
+  return {
+    ...real,
+    saveOriginalToStorage: async ({ data, fileName }: any) => {
+      if (storeFail) return { ok: false, error: storeFail };
+      stored.push({ name: fileName, size: data.length });
+      const ref = `storage:documents/u1/telegram/1791000000000_${real.storageSafeName(fileName)}`;
+      storageFiles.set(ref, data);
+      return { ok: true, ref, id: "d1" };
+    },
+    readStorageOriginal: async (ref: string) => {
+      const d = storageFiles.get(ref);
+      return d ? { ok: true, data: d, name: real.displayNameOf(real.storagePathOf(ref)) } : { ok: false, reason: "File asli tidak bisa diambil dari Documents (Object not found)" };
+    },
+  };
+});
+
 /* ---------- tiruan inti bot & antrian ---------- */
 const turns: { text: string; forceNew: boolean }[] = [];
 let turnResult: any = { text: "## Task\n- **Audit RLS**", conversationId: "conv-1" };
@@ -83,6 +105,9 @@ beforeEach(() => {
   jobs.length = 0;
   failHtml = false;
   downloadData = null;
+  stored.length = 0;
+  storeFail = null;
+  storageFiles.clear();
   turnResult = { text: "## Task\n- **Audit RLS**", conversationId: "conv-1" };
   process.env.TELEGRAM_OWNER_ID = "42";
 });
@@ -148,21 +173,41 @@ describe("handleTelegram: file masuk", () => {
       msg(null, { kind: "document", caption: "ini NIB Rally District", document: { fileId: "F1", fileName: "nib.docx", fileSize: 9000, mime: null } })
     );
     expect(turns).toHaveLength(1);
-    expect(turns[0].text).toMatch(/^\[ISI FILE: nib\.docx \| project: {2}\| lokasi: Telegram\]\n/);
+    expect(turns[0].text).toMatch(/^\[ISI FILE: nib\.docx \| project: {2}\| lokasi: storage:documents\/u1\/telegram\/1791000000000_nib\.docx\]\n/);
+    expect(stored).toEqual([{ name: "nib.docx", size: downloadData!.length }]);
     expect(turns[0].text).toMatch(/NIB 1503220029113/);
-    expect(turns[0].text).toMatch(/\n\[\/ISI FILE\]\n\nini NIB Rally District$/);
+    expect(turns[0].text).toMatch(/\n\[\/ISI FILE\]\n\nini NIB Rally District\n\n\(Catatan sistem: file ASLI sudah tersimpan/);
+  });
+
+  it("file asli gagal disimpan: teks tetap dibaca AI, kegagalan disebut", async () => {
+    storeFail = "Bucket not found";
+    downloadData = await markdownToDocx("isi", { title: "x" });
+    await handleTelegram(msg(null, { kind: "document", document: { fileId: "F2", fileName: "a.docx", fileSize: 900, mime: null } }));
+    expect(turns[0].text).toMatch(/lokasi: Telegram\]/);
+    expect(turns[0].text).toMatch(/GAGAL disimpan \(Bucket not found\)/);
+  });
+
+  it("gambar / PowerPoint: file asli disimpan tanpa AI, dibalas konfirmasi", async () => {
+    downloadData = Buffer.from("PNGDATA");
+    await handleTelegram(msg(null, { kind: "document", document: { fileId: "F3", fileName: "struk belanja.jpg", fileSize: 7, mime: null } }));
+    await handleTelegram(msg(null, { kind: "document", document: { fileId: "F4", fileName: "slide.pptx", fileSize: 7, mime: null } }));
+    expect(turns).toHaveLength(0);
+    expect(stored.map((x) => x.name)).toEqual(["struk belanja.jpg", "slide.pptx"]);
+    expect(sent()[0]).toMatch(/File asli/);
+    expect(sent()[0]).toMatch(/Documents/);
+    expect(sent()[0]).toMatch(/perlu OCR/);
   });
 
   it("jenis tidak didukung / terlalu besar / gagal unduh: ditolak tanpa AI", async () => {
-    await handleTelegram(msg(null, { kind: "document", document: { fileId: "F", fileName: "slide.pptx", fileSize: 10, mime: null } }));
+    downloadData = null;
+    await handleTelegram(msg(null, { kind: "document", document: { fileId: "F", fileName: "setup.exe", fileSize: 10, mime: null } }));
     await handleTelegram(msg(null, { kind: "document", document: { fileId: "F", fileName: "besar.pdf", fileSize: 30 * 1024 * 1024, mime: null } }));
     await handleTelegram(msg(null, { kind: "document", document: { fileId: "F", fileName: "a.pdf", fileSize: 10, mime: null } }));
-    await handleTelegram(msg(null, { kind: "document", document: { fileId: "F", fileName: "foto.jpg", fileSize: 10, mime: null } }));
     expect(turns).toHaveLength(0);
+    expect(stored).toHaveLength(0);
     expect(sent()[0]).toMatch(/belum didukung/);
     expect(sent()[1]).toMatch(/20 MB/);
     expect(sent()[2]).toMatch(/Gagal mengambil file/);
-    expect(sent()[3]).toMatch(/Gambar belum bisa dibaca/);
   });
 });
 
@@ -209,6 +254,26 @@ describe("handleTelegram: dokumen keluar", () => {
     expect(docs[0].body.data.toString()).toBe("%PDF-1.4 NIB");
     expect(docs[1].body.name).toBe("lama.docx");
     expect(sent().some((t) => /tidak ditemukan lagi di laptop/.test(t))).toBe(true);
+  });
+
+  it("file asli dari menu Documents (Storage) dikirim walau laptop mati; file-saja yang hilang tidak dikirim sebagai .docx kosong", async () => {
+    const ref = "storage:documents/u1/telegram/1791000000000_Panduan_My_Workspace.pdf";
+    storageFiles.set(ref, Buffer.from("%PDF-1.7 panduan"));
+    turnResult = {
+      text: "Ini dokumennya.",
+      conversationId: "c",
+      files: [
+        { title: "Panduan My Workspace", format: "docx", markdown: "teks", source: "stored", originalPath: ref },
+        { title: "Hilang", format: "docx", markdown: "", source: "stored", originalPath: "storage:documents/u1/telegram/1_hilang.pdf", originalOnly: true },
+      ],
+    };
+    await handleTelegram(msg("kirim panduan my workspace"));
+    const docs = calls.filter((c) => c.method === "sendDocument");
+    expect(docs).toHaveLength(1);
+    expect(docs[0].body).toMatchObject({ name: "Panduan_My_Workspace.pdf", caption: "Panduan My Workspace (file asli)" });
+    expect(docs[0].body.data.toString()).toBe("%PDF-1.7 panduan");
+    expect(sent().some((t) => /File asli "Hilang" tidak bisa dikirim \(File asli tidak bisa diambil/.test(t))).toBe(true);
+    expect(sent().some((t) => /Dikirim versi teksnya/.test(t))).toBe(false);
   });
 
   it("fileBuffer: subjudul membedakan dokumen baru & tersimpan", async () => {

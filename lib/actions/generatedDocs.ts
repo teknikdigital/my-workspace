@@ -8,7 +8,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { findProjectByName } from "@/lib/actions/projectAssist";
-import { pickDocument, splitOriginalPath, plainTitle, DOC_TAGS, GENERATED_DOC_TAG } from "@/lib/documents/findDocument";
+import { pickDocument, queryWords, splitOriginalPath, plainTitle, DOC_TAGS, GENERATED_DOC_TAG } from "@/lib/documents/findDocument";
+import { STORAGE_PREFIX } from "@/lib/files/storageOriginal";
 
 export { GENERATED_DOC_TAG };
 
@@ -54,6 +55,20 @@ export async function findDocumentForFile(input: { query: string; project?: stri
   const { data: plain } = await supabase.from("notes").select("title, content, body, tags, updated_at, project:projects(name)").ilike("title", like).limit(10);
   rows = rows.concat(((plain || []) as any[]).filter((r) => !rows.some((x) => x.title === r.title)));
 
+  // file di menu Documents (unggahan web / file asli dari Telegram) yang belum punya catatan teks
+  if (!p.id) {
+    const words = queryWords(query).slice(0, 4);
+    if (words.length) {
+      const or = words.map((w) => `title.ilike.%${w.replace(/[%_\\,()]/g, "")}%`).join(",");
+      const { data: files } = await supabase.from("documents").select("title, file_path, updated_at").or(or).order("updated_at", { ascending: false }).limit(30);
+      for (const f of (files || []) as any[]) {
+        const ref = `${STORAGE_PREFIX}${f.file_path}`;
+        if (rows.some((r) => String(r.content || r.body || "").includes(ref))) continue; // sudah ada catatan teksnya
+        rows.push({ title: f.title, content: `\n\n---\nFile asli: ${ref}`, body: null, tags: [], updated_at: f.updated_at, project: null, _fileOnly: true });
+      }
+    }
+  }
+
   const picked = pickDocument(rows, query);
   if (!picked) {
     const sample = rows.slice(0, 8).map((r) => plainTitle(r.title));
@@ -69,6 +84,7 @@ export async function findDocumentForFile(input: { query: string; project?: stri
     title: plainTitle(picked.best.title),
     content: text,
     originalPath: path,
+    originalOnly: !!picked.best._fileOnly,
     project: picked.best.project?.name || null,
     others: picked.others.map((r: any) => plainTitle(r.title)),
   };

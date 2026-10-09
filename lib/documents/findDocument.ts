@@ -74,6 +74,6 @@ export function splitOriginalPath(content: string): { text: string; path: string
   const m = content.match(/\n*(?:---\n)?File(?: asli)?: (.+)\s*$/);
   if (!m) return { text: content, path: null };
   const p = m[1].trim();
-  const looksPath = /^[a-zA-Z]:[\\/]|^\//.test(p);
+  const looksPath = /^[a-zA-Z]:[\\/]|^\/|^storage:documents\//.test(p);
   return { text: content.slice(0, m.index).trim(), path: looksPath ? p : null };
 }
