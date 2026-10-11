@@ -79,6 +79,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/api/whatsapp") ||
     pathname.startsWith("/api/telegram") ||
     pathname.startsWith("/api/claude-queue") || // agent laptop, auth token integrasi
+    pathname.startsWith("/api/agent-blobs") || // blob perantara agent <-> Muse, auth token integrasi
     pathname.startsWith("/api/activity") ||
     pathname.startsWith("/api/cron") ||
     pathname === "/privacy" // kebijakan privasi publik (syarat Meta)
