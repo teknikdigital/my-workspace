@@ -221,6 +221,18 @@
           "D:\\Dokumen"
         ]
       }
+    },
+    {
+      "id": "biofarma-apps",
+      "name": "File Biofarma",
+      "group": "Sistem",
+      "description": "Operasi file project aplikasi di D:\\Biofarma\\Digitalisasi via job mode=file (tanpa Claude Code).",
+      "fileOps": {
+        "enabled": true,
+        "roots": [
+          "D:\\Biofarma\\Digitalisasi"
+        ]
+      }
     }
   ]
 }
