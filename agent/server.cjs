@@ -80,11 +80,14 @@ function loadConfig() {
     if (ids.has(app.id)) throw new Error(`apps.json: id ganda: ${app.id}`);
     ids.add(app.id);
     // Koleksi khusus Claude (tanpa proses): cukup "folder" + "claude", mis. untuk membaca banyak project sekaligus
-    if (!Array.isArray(app.processes) || app.processes.length === 0) {
+    // App khusus fileOps (tanpa proses): cukup "fileOps.enabled", mis. "File Laptop"
+    const noProcesses = !Array.isArray(app.processes) || app.processes.length === 0;
+    const fileOpsOnly = noProcesses && !!(app.fileOps && app.fileOps.enabled);
+    if (noProcesses && !fileOpsOnly) {
       if (typeof app.folder !== "string" || !app.folder) throw new Error(`apps.json: ${app.id} wajib punya minimal 1 proses atau "folder"`);
-      app.processes = [];
       app.claudeOnly = true;
     }
+    if (noProcesses) app.processes = [];
     if (app.claude && app.claude.addDirs !== undefined && !Array.isArray(app.claude.addDirs))
       throw new Error(`apps.json: ${app.id} claude.addDirs harus array folder`);
     for (const p of app.processes) {
