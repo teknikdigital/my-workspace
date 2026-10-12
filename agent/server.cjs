@@ -562,7 +562,8 @@ function appFolder(app) {
 }
 
 function inboxDir(app) {
-  return path.join(appFolder(app), config.inboxName);
+  const base = appFolder(app);
+  return base ? path.join(base, config.inboxName) : null;
 }
 
 /** Nama file aman untuk Windows: tanpa path, karakter terlarang, atau nama khusus (CON, NUL, ...). */
@@ -588,8 +589,10 @@ function uniquePath(dir, name) {
 }
 
 function ensureInbox(app) {
+  const base = appFolder(app);
+  if (!base) throw new Error(`App "${app.id}" tidak punya folder project (bukan app berbasis folder).`);
   const dir = inboxDir(app);
-  if (!fs.existsSync(appFolder(app))) throw new Error(`Folder project tidak ditemukan: ${appFolder(app)}`);
+  if (!fs.existsSync(base)) throw new Error(`Folder project tidak ditemukan: ${base}`);
   fs.mkdirSync(dir, { recursive: true });
   // Isi _Masuk tidak ikut ter-commit ke git tanpa perlu mengubah .gitignore project
   const gi = path.join(dir, ".gitignore");
@@ -784,7 +787,9 @@ const server = http.createServer(async (req, res) => {
         }
       }
       if (req.method === "POST" && action === "open-folder") {
-        openFolder(appFolder(app));
+        const folder = appFolder(app);
+        if (!folder) return send(res, 400, { error: `App "${app.id}" tidak punya folder project.` });
+        openFolder(folder);
         return send(res, 200, { ok: true });
       }
     }
