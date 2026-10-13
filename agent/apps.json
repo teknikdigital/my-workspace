@@ -293,6 +293,36 @@
         "mode": "edit",
         "project": "Portal Teknik"
       }
+    },
+    {
+      "id": "master-data",
+      "name": "Master Data",
+      "group": "Bio Farma",
+      "description": "Master Data Speed (Next.js, deploy Vercel)",
+      "url": "http://localhost:3004",
+      "folder": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)",
+      "embeddable": false,
+      "autoStart": false,
+      "processes": [
+        {
+          "name": "web",
+          "cwd": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)",
+          "command": "npm run dev",
+          "port": 3004
+        }
+      ],
+      "actions": [
+        {
+          "id": "install",
+          "label": "Install Dependencies",
+          "cwd": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)",
+          "command": "npm install"
+        }
+      ],
+      "claude": {
+        "mode": "edit",
+        "project": "Master Data"
+      }
     }
   ]
 }
