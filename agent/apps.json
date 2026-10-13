@@ -263,6 +263,36 @@
         "mode": "edit",
         "project": "Management Energi"
       }
+    },
+    {
+      "id": "portal-teknik",
+      "name": "Portal Teknik",
+      "group": "Bio Farma",
+      "description": "Portal Teknik (Next.js)",
+      "url": "http://localhost:3003",
+      "folder": "D:\\Biofarma\\Digitalisasi\\Portal Teknik",
+      "embeddable": false,
+      "autoStart": false,
+      "processes": [
+        {
+          "name": "web",
+          "cwd": "D:\\Biofarma\\Digitalisasi\\Portal Teknik",
+          "command": "npm run dev",
+          "port": 3003
+        }
+      ],
+      "actions": [
+        {
+          "id": "install",
+          "label": "Install Dependencies",
+          "cwd": "D:\\Biofarma\\Digitalisasi\\Portal Teknik",
+          "command": "npm install"
+        }
+      ],
+      "claude": {
+        "mode": "edit",
+        "project": "Portal Teknik"
+      }
     }
   ]
 }
