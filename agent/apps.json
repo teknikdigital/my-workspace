@@ -233,6 +233,36 @@
           "D:\\Biofarma\\Digitalisasi"
         ]
       }
+    },
+    {
+      "id": "management-energi",
+      "name": "Management Energi",
+      "group": "Bio Farma",
+      "description": "Aplikasi Management Energi (Next.js)",
+      "url": "http://localhost:3002",
+      "folder": "D:\\Biofarma\\Digitalisasi\\Management Energi",
+      "embeddable": false,
+      "autoStart": false,
+      "processes": [
+        {
+          "name": "web",
+          "cwd": "D:\\Biofarma\\Digitalisasi\\Management Energi",
+          "command": "npm run dev",
+          "port": 3002
+        }
+      ],
+      "actions": [
+        {
+          "id": "install",
+          "label": "Install Dependencies",
+          "cwd": "D:\\Biofarma\\Digitalisasi\\Management Energi",
+          "command": "npm install"
+        }
+      ],
+      "claude": {
+        "mode": "edit",
+        "project": "Management Energi"
+      }
     }
   ]
 }
