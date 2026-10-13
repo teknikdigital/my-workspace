@@ -268,8 +268,8 @@
       "id": "portal-teknik",
       "name": "Portal Teknik",
       "group": "Bio Farma",
-      "description": "Portal Teknik (Next.js)",
-      "url": "http://localhost:3003",
+      "description": "Portal Teknik (PWA statis)",
+      "url": "http://localhost:5500",
       "folder": "D:\\Biofarma\\Digitalisasi\\Portal Teknik",
       "embeddable": false,
       "autoStart": false,
@@ -277,16 +277,8 @@
         {
           "name": "web",
           "cwd": "D:\\Biofarma\\Digitalisasi\\Portal Teknik",
-          "command": "npm run dev",
-          "port": 3003
-        }
-      ],
-      "actions": [
-        {
-          "id": "install",
-          "label": "Install Dependencies",
-          "cwd": "D:\\Biofarma\\Digitalisasi\\Portal Teknik",
-          "command": "npm install"
+          "command": "py -m http.server 5500 || python -m http.server 5500 || npx --yes serve -l 5500 .",
+          "port": 5500
         }
       ],
       "claude": {
