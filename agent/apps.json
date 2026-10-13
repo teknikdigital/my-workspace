@@ -299,7 +299,7 @@
         {
           "name": "web",
           "cwd": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)\\Aplikasi\\Master-Data-Teknik",
-          "command": "next dev -p 3004",
+          "command": "npm run dev -- -p 3004",
           "port": 3004
         }
       ],
