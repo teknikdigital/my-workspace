@@ -290,16 +290,16 @@
       "id": "master-data",
       "name": "Master Data",
       "group": "Bio Farma",
-      "description": "Master Data Speed (Next.js, deploy Vercel)",
+      "description": "Master Data Teknik / SPEED (Next.js 16 + Supabase)",
       "url": "http://localhost:3004",
-      "folder": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)",
+      "folder": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)\\Aplikasi\\Master-Data-Teknik",
       "embeddable": false,
       "autoStart": false,
       "processes": [
         {
           "name": "web",
-          "cwd": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)",
-          "command": "npm run dev",
+          "cwd": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)\\Aplikasi\\Master-Data-Teknik",
+          "command": "next dev -p 3004",
           "port": 3004
         }
       ],
@@ -307,7 +307,7 @@
         {
           "id": "install",
           "label": "Install Dependencies",
-          "cwd": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)",
+          "cwd": "D:\\Biofarma\\Digitalisasi\\master data vercel (speed)\\Aplikasi\\Master-Data-Teknik",
           "command": "npm install"
         }
       ],
