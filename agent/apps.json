@@ -345,6 +345,18 @@
         "mode": "edit",
         "project": "RestoLauncher"
       }
+    },
+    {
+      "id": "skripsi-files",
+      "name": "File Skripsi",
+      "group": "Personal",
+      "description": "Folder skripsi di laptop via job mode=file (tanpa Claude Code). project: \"File Skripsi\".",
+      "fileOps": {
+        "enabled": true,
+        "roots": [
+          "D:\\Dokumen\\skripsi"
+        ]
+      }
     }
   ]
 }
