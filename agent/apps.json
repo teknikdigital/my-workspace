@@ -315,6 +315,36 @@
         "mode": "edit",
         "project": "Master Data"
       }
+    },
+    {
+      "id": "resto-launcher",
+      "name": "RestoLauncher",
+      "group": "Personal",
+      "description": "Restaurant discovery with Google Places API (Next.js 16)",
+      "url": "http://localhost:3006",
+      "folder": "D:\\Project\\resto-launcher",
+      "embeddable": false,
+      "autoStart": false,
+      "processes": [
+        {
+          "name": "web",
+          "cwd": "D:\\Project\\resto-launcher",
+          "command": "npm run dev -- -p 3006",
+          "port": 3006
+        }
+      ],
+      "actions": [
+        {
+          "id": "install",
+          "label": "Install Dependencies",
+          "cwd": "D:\\Project\\resto-launcher",
+          "command": "npm install"
+        }
+      ],
+      "claude": {
+        "mode": "edit",
+        "project": "RestoLauncher"
+      }
     }
   ]
 }
